@@ -69,7 +69,7 @@ export class VercelSandboxBackend extends SandboxBackend {
     return Effect.tryPromise({
       try: async () => {
         const sandbox = await Sandbox.create({
-          runtime: "node22",
+          runtime: "node24",
           timeout: 5 * 60 * 1000,
           resources: {
             vcpus: 2,
