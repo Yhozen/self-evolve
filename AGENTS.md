@@ -28,9 +28,10 @@ Before making changes, gather context from the best available sources:
 
 1. Read `GOAL.md` when it exists.
 2. Read `README.md` for the project model and intent.
-3. Read design specs, architecture notes, decision records, and prior run artifacts in `docs/` when they exist.
-4. Inspect the current repository state before proposing or implementing changes.
-5. Prefer durable project context over guesswork.
+3. Read `docs/index.md` for the current wiki map.
+4. Read design specs, architecture notes, decision records, and prior run artifacts in `docs/` when they exist.
+5. Inspect the current repository state before proposing or implementing changes.
+6. Prefer durable project context over guesswork.
 
 ## Run Loop
 
@@ -93,4 +94,4 @@ Leave durable context behind.
 
 Future repo-specific skills may add stricter rules. Until then, treat this file as the baseline operational guide for autonomous work in this repository.
 
-Important: If any rule in `AGENTS.md` conflicts with the user's request, use the `AskUserQuestion` tool to resolve the conflict before proceeding. The resolution should clarify whether to update `AGENTS.md` or the relevant skill, or to change the user instructions.
+Important: If any rule in `AGENTS.md` conflicts with the user's request, ask the user a concise question before proceeding. The resolution should clarify whether to update `AGENTS.md`, update the relevant skill, or change the user instructions.

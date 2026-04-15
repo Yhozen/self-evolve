@@ -68,6 +68,7 @@ These documents define the project over time:
 - `README.md`: manifesto and operating model for humans
 - `AGENTS.md`: run guidance for autonomous agents
 - `GOAL.md`: the product or business goal the system is evolving toward
-- `docs/`: architecture notes, design specs, decision records, and run artifacts
+- `docs/index.md`: the entry point for the docs wiki
+- `docs/`: architecture notes, design specs, decisions, blueprints, templates, and run artifacts
 
 The repository is intentionally starting with the structure around the work before the work itself.
