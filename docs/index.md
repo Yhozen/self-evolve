@@ -34,6 +34,7 @@ Read `log.md` for recent chronological changes.
 
 - [Decisions Index](decisions/README.md) - Durable records of architectural and process choices.
 - [0001: Bootstrap Docs Wiki Structure](decisions/0001-bootstrap-docs-wiki-structure.md) - Why the docs wiki is layered and why placeholders live in canonical files.
+- [0002: Abstract Sandbox Backend And Create Runnable Sandboxes](decisions/0002-abstract-sandbox-backend-and-create-runnable-sandboxes.md) - Why sandbox operations now go through an Effect-backed backend boundary and create flow.
 
 ## Specs
 

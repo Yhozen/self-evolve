@@ -9,3 +9,9 @@ Use one entry per meaningful docs operation with the heading format `## [YYYY-MM
 - Created the initial docs wiki structure under `docs/`.
 - Added `index.md`, `log.md`, and the first canonical overview, architecture, blueprint, evaluation, decision, glossary, run, and template pages.
 - Established the rule that placeholders live in canonical files until future project-initialization work or later runs replace them with concrete project context.
+
+## [2026-04-15] decision | sandbox backend abstraction and runnable create flow
+
+- Added decision record `0002-abstract-sandbox-backend-and-create-runnable-sandboxes.md`.
+- Recorded that sandbox operations now flow through an Effect-backed service boundary under `src/server/sandbox/` with a Vercel live implementation.
+- Recorded that the sandbox console now creates fresh sandboxes on demand, prioritizes runnable sandboxes in the list, and disables command execution for stopped sandboxes.
