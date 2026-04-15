@@ -33,6 +33,15 @@ Before making changes, gather context from the best available sources:
 5. Inspect the current repository state before proposing or implementing changes.
 6. Prefer durable project context over guesswork.
 
+## Scoped Instructions
+
+Use nested `AGENTS.md` files for instructions that apply only to a specific subdirectory or subtree.
+
+- Prefer incremental disclosure over large, catch-all instruction files.
+- Keep the root `AGENTS.md` focused on repository-wide rules.
+- Add a nested `AGENTS.md` when a package, workflow, or docs area needs local guidance.
+- When working in a subdirectory, follow the closest applicable `AGENTS.md` in that part of the tree.
+
 ## Run Loop
 
 For an evolution run, prefer this loop:
