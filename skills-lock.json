@@ -1,6 +1,16 @@
 {
   "version": 1,
   "skills": {
+    "cmux-browser": {
+      "source": "manaflow-ai/cmux",
+      "sourceType": "github",
+      "computedHash": "7206737c08f3ce8efd87fcf450b6bfe4ed69dfb8c8861ab8d7d9e078732136d3"
+    },
+    "effect-ts": {
+      "source": "paulrberg/agent-skills",
+      "sourceType": "github",
+      "computedHash": "273eb6d71f6b7732aaed3b6b61330be3ea56894223339aee4a294bd43cb61d0b"
+    },
     "sandbox": {
       "source": "vercel/sandbox",
       "sourceType": "github",
