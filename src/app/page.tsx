@@ -16,12 +16,14 @@ export default async function Home() {
           </p>
           <div className="flex flex-col gap-2">
             <h1 className="max-w-3xl text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
-              Inspect active sandboxes and run commands against them.
+              Inspect sandboxes, restore from snapshots, and run commands
+              against them.
             </h1>
             <p className="max-w-2xl text-base leading-7 text-muted-foreground">
               The index page reads the current sandbox inventory through the
-              active backend, currently Vercel, and lets you execute commands
-              per sandbox with stdout, stderr, and exit status visible in place.
+              active backend, currently Vercel, restores new sandboxes from the
+              latest saved snapshot when one exists, and lets you execute
+              commands with stdout, stderr, and exit status visible in place.
             </p>
           </div>
         </header>

@@ -3,12 +3,14 @@
 import { Effect } from "effect";
 import type {
   CreateSandboxResult,
+  CreateSnapshotResult,
   ExecuteSandboxCommandInput,
   ExecuteSandboxCommandResult,
   SandboxListResult,
 } from "@/lib/sandbox";
 import {
   createSandboxProgram,
+  createSnapshotProgram,
   executeSandboxCommandProgram,
   listSandboxesProgram,
 } from "@/server/sandbox/service";
@@ -27,6 +29,14 @@ export async function listSandboxes(): Promise<SandboxListResult> {
 export async function createSandbox(): Promise<CreateSandboxResult> {
   return runSandboxProgram(
     createSandboxProgram.pipe(Effect.provide(VercelSandboxLive)),
+  );
+}
+
+export async function snapshotSandbox(
+  sandboxId: string,
+): Promise<CreateSnapshotResult> {
+  return runSandboxProgram(
+    createSnapshotProgram(sandboxId).pipe(Effect.provide(VercelSandboxLive)),
   );
 }
 

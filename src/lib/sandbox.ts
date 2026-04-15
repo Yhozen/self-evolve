@@ -12,10 +12,24 @@ export type SandboxSummary = {
   updatedAt: string;
   startedAt: string | null;
   stoppedAt: string | null;
+  sourceSnapshotId: string | null;
+  snapshottedAt: string | null;
+};
+
+export type SnapshotSummary = {
+  snapshotId: string;
+  status: string;
+  sourceSandboxId: string;
+  region: string;
+  sizeBytes: number;
+  createdAt: string;
+  updatedAt: string;
+  expiresAt: string | null;
 };
 
 export type SandboxListResult = {
   sandboxes: SandboxSummary[];
+  latestSnapshot: SnapshotSummary | null;
   error: string | null;
 };
 
@@ -40,5 +54,14 @@ export type ExecuteSandboxCommandResult = {
 
 export type CreateSandboxResult = {
   sandboxId: string | null;
+  sourceSnapshotId: string | null;
+  restoredFromSnapshot: boolean;
+  error: string | null;
+};
+
+export type CreateSnapshotResult = {
+  sandboxId: string;
+  snapshotId: string | null;
+  expiresAt: string | null;
   error: string | null;
 };

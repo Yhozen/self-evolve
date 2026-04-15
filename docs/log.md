@@ -15,3 +15,9 @@ Use one entry per meaningful docs operation with the heading format `## [YYYY-MM
 - Added decision record `0002-abstract-sandbox-backend-and-create-runnable-sandboxes.md`.
 - Recorded that sandbox operations now flow through an Effect-backed service boundary under `src/server/sandbox/` with a Vercel live implementation.
 - Recorded that the sandbox console now creates fresh sandboxes on demand, prioritizes runnable sandboxes in the list, and disables command execution for stopped sandboxes.
+
+## [2026-04-15] decision | snapshot-backed persistent sandbox restores
+
+- Added decision record `0003-use-snapshots-for-persistent-sandbox-restores.md`.
+- Recorded that persistent sandbox behavior now uses Vercel snapshots as the reusable base for new sandboxes.
+- Recorded that the sandbox console exposes the latest snapshot, restores new sandboxes from it when available, and allows saving a running sandbox as the next persistent base.
