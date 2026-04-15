@@ -92,3 +92,5 @@ Leave durable context behind.
 - Always use Conventional Commits for git commit messages.
 
 Future repo-specific skills may add stricter rules. Until then, treat this file as the baseline operational guide for autonomous work in this repository.
+
+Important: If any rule in `AGENTS.md` conflicts with the user's request, use the `AskUserQuestion` tool to resolve the conflict before proceeding. The resolution should clarify whether to update `AGENTS.md` or the relevant skill, or to change the user instructions.
