@@ -18,7 +18,6 @@ The repository will use a layered docs wiki under `docs/` with:
 
 - `index.md` as the content-oriented entry point
 - `log.md` as the chronological operation log
-- `subagents.md` as the docs-specific schema and maintenance guide
 - separate sections for overview, architecture, blueprints, evaluation, decisions, specs, glossary, runs, and templates
 - placeholders in canonical files rather than in a separate holding area
 

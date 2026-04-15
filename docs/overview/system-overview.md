@@ -13,7 +13,7 @@ This repository is converging on three layers inspired by the LLM Wiki pattern:
 2. The wiki
    The canonical markdown pages under `docs/` that synthesize the repository's current understanding.
 3. The schema
-   The instructions that tell an agent how to maintain the wiki, primarily `AGENTS.md` and `docs/subagents.md`.
+   The instructions that tell an agent how to maintain the wiki, primarily `AGENTS.md`.
 
 ## Human And Agent Roles
 

@@ -5,14 +5,12 @@ Use this blueprint when the task is to maintain, extend, lint, or query the wiki
 ## Inputs
 
 - `docs/index.md`
-- `docs/subagents.md`
 - the relevant wiki pages for the task
 - any new source material being incorporated
 
 ## Workflow
 
 1. Read `docs/index.md` to find the relevant pages.
-2. Read `docs/subagents.md` for maintenance rules.
 3. Update the canonical page or add a new focused page if needed.
 4. Update `docs/index.md` if the wiki map changed.
 5. Append to `docs/log.md` if the change was meaningful.

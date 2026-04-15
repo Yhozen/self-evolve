@@ -1,9 +1,3 @@
-# Docs Subagents Guide
-
-This file defines how agents should work inside `docs/`.
-
-Root instructions in `../AGENTS.md` still apply. This file adds subtree-specific behavior for the wiki.
-
 ## Purpose
 
 The `docs/` tree is a persistent, agent-maintained wiki for this repository.

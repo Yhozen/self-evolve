@@ -2,7 +2,7 @@
 
 This is the content-oriented entry point for the wiki under `docs/`.
 
-Read `subagents.md` when editing the wiki. Read `log.md` for recent chronological changes.
+Read `log.md` for recent chronological changes.
 
 ## Overview
 
@@ -59,6 +59,5 @@ Read `subagents.md` when editing the wiki. Read `log.md` for recent chronologica
 
 ## Docs Runtime
 
-- [Docs Agent Guide](subagents.md) - Detailed instructions for maintaining the wiki under `docs/`.
 - [Wiki Log](log.md) - Append-only chronological record of wiki changes and operations.
 - [Superpowers Notes](superpowers/README.md) - Notes about tool-generated docs under `docs/superpowers/`.
