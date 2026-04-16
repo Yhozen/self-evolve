@@ -2,6 +2,8 @@
 
 import { Effect } from "effect";
 import type {
+  BuildSandboxSnapshotInput,
+  BuildSandboxSnapshotResult,
   CreateSandboxResult,
   CreateSnapshotResult,
   DeleteSnapshotResult,
@@ -11,6 +13,7 @@ import type {
   StopSandboxResult,
 } from "@/lib/sandbox";
 import {
+  buildSandboxSnapshotProgram,
   createSandboxProgram,
   createSnapshotProgram,
   deleteSnapshotProgram,
@@ -33,6 +36,14 @@ export async function listSandboxes(): Promise<SandboxListResult> {
 export async function createSandbox(): Promise<CreateSandboxResult> {
   return runSandboxProgram(
     createSandboxProgram.pipe(Effect.provide(VercelSandboxLive)),
+  );
+}
+
+export async function buildSandboxSnapshot(
+  input: BuildSandboxSnapshotInput,
+): Promise<BuildSandboxSnapshotResult> {
+  return runSandboxProgram(
+    buildSandboxSnapshotProgram(input).pipe(Effect.provide(VercelSandboxLive)),
   );
 }
 
