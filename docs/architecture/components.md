@@ -27,6 +27,9 @@ These are expected or newly planned as the workflow becomes concrete:
 - sandbox task runner that creates a sandbox, refreshes the repo, creates the
   task branch with `wt`, launches `opencode`, runs verification, and publishes a
   draft pull request
+- repo bootstrap flow that creates a sandbox from a selected GitHub repository,
+  runs default provisioning, snapshots the result, and returns the current
+  `opencode` handoff instruction
 - publish control plane that injects fresh GitHub App installation tokens only
   at publish time
 - automated evaluation and PR preparation support
