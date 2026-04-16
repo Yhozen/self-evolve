@@ -57,5 +57,10 @@ export async function GET(request: NextRequest) {
   const { installationId, repoUrl } = result.data;
 
   const sandbox = await createSandbox(installationId, repoUrl);
-  return NextResponse.json({ sandbox });
+
+  return NextResponse.json({
+    sandboxId: sandbox.sandboxId,
+    status: sandbox.status,
+    interactivePort: sandbox.interactivePort,
+  });
 }
