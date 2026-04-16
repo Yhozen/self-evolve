@@ -59,25 +59,45 @@ export function AppSidebar({ inventory, ...props }: AppSidebarProps) {
             description: "Pending or stopping",
           },
         ]
-      : [
-          {
-            label: "Snapshots",
-            value: inventory.snapshots.length,
-            description: "Saved restore points",
-          },
-          {
-            label: "Latest",
-            value: inventory.latestSnapshot ? "Saved" : "None",
-            description: inventory.latestSnapshot
-              ? formatTimestamp(inventory.latestSnapshot.createdAt)
-              : "No restore base yet",
-          },
-          {
-            label: "Sources",
-            value: runningSandboxes,
-            description: "Running sandboxes available",
-          },
-        ];
+      : activeSection.id === "snapshots"
+        ? [
+            {
+              label: "Snapshots",
+              value: inventory.snapshots.length,
+              description: "Saved restore points",
+            },
+            {
+              label: "Latest",
+              value: inventory.latestSnapshot ? "Saved" : "None",
+              description: inventory.latestSnapshot
+                ? formatTimestamp(inventory.latestSnapshot.createdAt)
+                : "No restore base yet",
+            },
+            {
+              label: "Sources",
+              value: runningSandboxes,
+              description: "Running sandboxes available",
+            },
+          ]
+        : [
+            {
+              label: "Inputs",
+              value: 2,
+              description: "Repo URL + installation ID",
+            },
+            {
+              label: "Mode",
+              value: "Preview",
+              description: "UI-first iteration",
+            },
+            {
+              label: "Baseline",
+              value: inventory.latestSnapshot ? "Project" : "Missing",
+              description: inventory.latestSnapshot
+                ? "Repo mapping still needed"
+                : "No restore base saved yet",
+            },
+          ];
 
   return (
     <Sidebar

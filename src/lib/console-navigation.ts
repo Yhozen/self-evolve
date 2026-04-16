@@ -1,6 +1,11 @@
-import { ArchiveIcon, type LucideIcon, ServerIcon } from "lucide-react";
+import {
+  ArchiveIcon,
+  GitBranchIcon,
+  type LucideIcon,
+  ServerIcon,
+} from "lucide-react";
 
-export type ConsoleSectionId = "sandboxes" | "snapshots";
+export type ConsoleSectionId = "bootstrap" | "sandboxes" | "snapshots";
 
 export type ConsoleSection = {
   id: ConsoleSectionId;
@@ -12,6 +17,19 @@ export type ConsoleSection = {
 };
 
 export const consoleSections: ConsoleSection[] = [
+  {
+    id: "bootstrap",
+    title: "Bootstrap",
+    href: "/bootstrap",
+    description:
+      "Prepare a repository to become a reusable sandbox baseline and preview the attach handoff.",
+    notes: [
+      "Start with a repository URL and the GitHub App installation that already has access.",
+      "The backend slice after this UI should clone the private repo, install opencode, and snapshot the provisioned workspace.",
+      "Repo baselines need explicit mapping instead of the current latest-project-snapshot behavior.",
+    ],
+    icon: GitBranchIcon,
+  },
   {
     id: "sandboxes",
     title: "Sandboxes",
@@ -41,10 +59,14 @@ export const consoleSections: ConsoleSection[] = [
 ];
 
 export function getConsoleSection(pathname: string) {
+  const fallbackSection =
+    consoleSections.find((section) => section.id === "sandboxes") ??
+    consoleSections[0];
+
   return (
     consoleSections.find(
       (section) =>
         pathname === section.href || pathname.startsWith(`${section.href}/`),
-    ) ?? consoleSections[0]
+    ) ?? fallbackSection
   );
 }

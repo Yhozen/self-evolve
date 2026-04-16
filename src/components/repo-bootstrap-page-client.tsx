@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import {
   ArrowRightIcon,
   CheckCircle2Icon,
@@ -9,6 +8,7 @@ import {
   PackageCheckIcon,
   TerminalSquareIcon,
 } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -270,7 +270,9 @@ export function RepoBootstrapPageClient({
                     ) : null}
                   </div>
                   <div className="space-y-1">
-                    <h3 className="font-medium text-foreground">{step.title}</h3>
+                    <h3 className="font-medium text-foreground">
+                      {step.title}
+                    </h3>
                     <p className="text-sm leading-6 text-muted-foreground">
                       {step.description}
                     </p>
@@ -296,7 +298,9 @@ export function RepoBootstrapPageClient({
               <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
                 Sandbox Workspace
               </div>
-              <p className="mt-2 font-mono text-sm leading-6">{workspacePath}</p>
+              <p className="mt-2 font-mono text-sm leading-6">
+                {workspacePath}
+              </p>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
                 The repo checkout, opencode install, and repo baseline snapshot
                 will all converge on a stable workspace path.
@@ -339,10 +343,7 @@ export function RepoBootstrapPageClient({
                   request and return sandbox plus snapshot identifiers.
                 </>
               ) : (
-                <>
-                  Fill in a valid repository URL and numeric installation ID to
-                  preview the repo bootstrap request.
-                </>
+                "Fill in a valid repository URL and numeric installation ID to preview the repo bootstrap request."
               )}
             </div>
           </div>
