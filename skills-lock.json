@@ -11,10 +11,20 @@
       "sourceType": "github",
       "computedHash": "273eb6d71f6b7732aaed3b6b61330be3ea56894223339aee4a294bd43cb61d0b"
     },
+    "frontend-design": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "computedHash": "063a0e6448123cd359ad0044cc46b0e490cc7964d45ef4bb9fd842bd2ffbca67"
+    },
     "sandbox": {
       "source": "vercel/sandbox",
       "sourceType": "github",
       "computedHash": "2ad9d47902e26dc238e78ce7e731a69581312ed99837635fa06b04e6fe1f68dd"
+    },
+    "ui-ux-pro-max": {
+      "source": "nextlevelbuilder/ui-ux-pro-max-skill",
+      "sourceType": "github",
+      "computedHash": "0a413bf988d06481f69bb81df2070741c3ba12dd9f1be2706d57f259c905992d"
     }
   }
 }
