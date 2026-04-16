@@ -33,6 +33,27 @@ This page describes the intended high-level data flow for autonomous work.
     Canonical pages are updated and future run artifacts may be stored in
     `docs/runs/`.
 
+## Repo Bootstrap Flow
+
+The repository-to-sandbox bootstrap flow is a separate v1 product path:
+
+1. The user selects a GitHub repository.
+   Existing GitHub authorization is assumed.
+2. The backend treats that repository as the baseline identity.
+   V1 keys the reusable baseline by repository only.
+3. A sandbox is created for that repository.
+4. The default provisioning script runs inside the sandbox.
+   Provisioning installs `opencode` and prepares the repo workspace.
+5. The sandbox is snapshotted.
+   That snapshot becomes the one current baseline snapshot for the repository
+   and may replace the previous one.
+6. The product returns the current instruction.
+   The handoff includes the sandbox id, snapshot id, and the instruction the
+   user should run in the isolated environment.
+7. Future fresh sandboxes restore from that repository baseline snapshot.
+   V1 intentionally restores from the current baseline, not from the user's
+   most recently modified sandbox.
+
 ## Current Limitation
 
 The one-PR-per-task runner is now specified concretely, but parts of the wider

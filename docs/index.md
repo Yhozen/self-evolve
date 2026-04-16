@@ -42,6 +42,7 @@ Read `log.md` for recent chronological changes.
 ## Specs
 
 - [Specs Index](specs/README.md) - Home for project or feature specs and proposed work.
+- [Repo Sandbox Bootstrap V1](specs/repo-sandbox-bootstrap-v1.md) - Initial user flow for selecting a repo, provisioning one reusable sandbox baseline, and returning the `opencode` handoff instruction.
 - [Sandbox Task Runner V1](specs/sandbox-task-runner-v1.md) - Initial one-task, one-sandbox, one-branch, one-draft-PR execution model.
 - [Sandbox Task Runner Follow-Ups](specs/sandbox-task-runner-follow-ups.md) - Deferred decisions and technical debt accepted for the initial task runner.
 - [Superpowers Specs](superpowers/specs/README.md) - Tool-generated design specs and brainstorming artifacts when those workflows are used.

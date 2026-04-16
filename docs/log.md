@@ -49,3 +49,9 @@ Use one entry per meaningful docs operation with the heading format `## [YYYY-MM
 
 - Added `sandbox-task-runner-follow-ups.md` to track deferred decisions and intentional technical debt for the initial task runner.
 - Updated the spec indexes so the follow-up page is discoverable alongside the v1 workflow spec.
+
+## [2026-04-16] docs | repo sandbox bootstrap v1
+
+- Added `repo-sandbox-bootstrap-v1.md` to capture the initial user-facing flow for selecting a repository, provisioning a sandbox, snapshotting it, and returning the `opencode` handoff instruction.
+- Recorded the accepted v1 simplifications: baseline keyed by repository only, exactly one mutable current snapshot per repository, restore-from-baseline behavior for fresh sandboxes, and no separate user authentication model.
+- Updated the docs index, specs index, and architecture pages so the bootstrap flow is discoverable alongside the autonomous task runner docs.
