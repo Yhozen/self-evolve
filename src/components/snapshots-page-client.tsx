@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { listSandboxes, snapshotSandbox } from "@/app/_actions/sandbox";
 import {
@@ -124,7 +125,7 @@ export function SnapshotsPageClient({ initialData }: SnapshotsPageClientProps) {
             </p>
             <div className="space-y-2">
               <h1 className="text-3xl font-semibold tracking-tight text-foreground lg:text-4xl">
-                Keep snapshot CRUD focused in one place.
+                Promote running sandboxes into reusable restore points.
               </h1>
               <p className="text-base leading-7 text-muted-foreground">
                 Create snapshots from running sandboxes, inspect the current
@@ -133,9 +134,14 @@ export function SnapshotsPageClient({ initialData }: SnapshotsPageClientProps) {
               </p>
             </div>
           </div>
-          <Button variant="outline" onClick={refresh} disabled={isRefreshing}>
-            {isRefreshing ? "Refreshing..." : "Refresh"}
-          </Button>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Button variant="outline" asChild>
+              <Link href="/sandboxes">Open Sandboxes</Link>
+            </Button>
+            <Button variant="outline" onClick={refresh} disabled={isRefreshing}>
+              {isRefreshing ? "Refreshing..." : "Refresh"}
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -144,7 +150,7 @@ export function SnapshotsPageClient({ initialData }: SnapshotsPageClientProps) {
           <CardHeader className="border-b border-border/70">
             <CardTitle>Create Snapshot</CardTitle>
             <CardDescription>
-              Choose a running sandbox and promote it to the next persistent
+              Choose a running sandbox and turn it into the next persistent
               restore base.
             </CardDescription>
           </CardHeader>
@@ -176,18 +182,31 @@ export function SnapshotsPageClient({ initialData }: SnapshotsPageClientProps) {
               </p>
             </div>
 
+            {runningSandboxes.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-border bg-background/70 p-4 text-sm text-muted-foreground">
+                No sandboxes are currently running. Create or restore one from
+                the Sandboxes page, warm it, then come back here to save the
+                snapshot.
+              </div>
+            ) : null}
+
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm text-muted-foreground">
                 {runningSandboxes.length} running sandbox
                 {runningSandboxes.length === 1 ? "" : "es"} available for
                 snapshotting.
               </p>
-              <Button
-                onClick={createSnapshotForSelectedSandbox}
-                disabled={isCreating || !selectedSandboxId}
-              >
-                {isCreating ? "Saving Snapshot..." : "Create Snapshot"}
-              </Button>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <Button variant="outline" asChild>
+                  <Link href="/sandboxes">Open Sandboxes</Link>
+                </Button>
+                <Button
+                  onClick={createSnapshotForSelectedSandbox}
+                  disabled={isCreating || !selectedSandboxId}
+                >
+                  {isCreating ? "Saving Snapshot..." : "Create Snapshot"}
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -218,13 +237,15 @@ export function SnapshotsPageClient({ initialData }: SnapshotsPageClientProps) {
         <CardHeader className="border-b border-border/70">
           <CardTitle>Snapshots</CardTitle>
           <CardDescription>
-            Saved restore points returned by the active Vercel project.
+            Saved restore points returned by the active Vercel project. Remove
+            one with the `Delete Snapshot` button on its card.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-5 pt-5">
           {snapshots.length === 0 ? (
             <EmptyState>
-              No snapshots were returned by the current project.
+              No snapshots were returned by the current project. When snapshots
+              exist, each card here includes a `Delete Snapshot` action.
             </EmptyState>
           ) : (
             snapshots.map((snapshot) => (

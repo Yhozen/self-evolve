@@ -1,5 +1,7 @@
 import { Context, Data, Effect } from "effect";
 import type {
+  BuildSandboxSnapshotInput,
+  BuildSandboxSnapshotResult,
   CreateSandboxResult,
   CreateSnapshotResult,
   DeleteSnapshotResult,
@@ -16,6 +18,23 @@ type NormalizedExecuteSandboxCommandInput = {
   command: string;
   args: string[];
   cwd: string | undefined;
+};
+
+type NormalizedSandboxRecipeInput = {
+  name: string;
+  script: string;
+  cwd: string | undefined;
+};
+
+type NormalizedSandboxUserProfileInput = {
+  name: string | null;
+  script: string;
+  cwd: string | undefined;
+};
+
+type NormalizedBuildSandboxSnapshotInput = {
+  recipe: NormalizedSandboxRecipeInput;
+  userProfile: NormalizedSandboxUserProfileInput | null;
 };
 
 export type ExecuteSandboxCommandSuccess = {
@@ -208,6 +227,127 @@ export abstract class SandboxBackend {
     );
   }
 
+  buildSandboxSnapshot(
+    input: BuildSandboxSnapshotInput,
+  ): Effect.Effect<BuildSandboxSnapshotResult> {
+    const backend = this;
+    const prepared = this.prepareBuildSnapshotInput(input);
+
+    return Effect.gen(function* () {
+      const validated = yield* Effect.either(
+        SandboxBackend.validateBuildSnapshotInput(prepared),
+      );
+
+      if (validated._tag === "Left") {
+        return SandboxBackend.toBuildSnapshotErrorResult({
+          prepared,
+          failedStep: "validation",
+          message: validated.left.message,
+        });
+      }
+
+      const created = yield* Effect.either(backend.createRaw(null));
+
+      if (created._tag === "Left") {
+        return SandboxBackend.toBuildSnapshotErrorResult({
+          prepared,
+          failedStep: "createSandbox",
+          message: created.left.message,
+        });
+      }
+
+      const recipeExecution = yield* Effect.either(
+        backend.executeShellScript({
+          sandboxId: created.right.sandboxId,
+          script: prepared.recipe.script,
+          cwd: prepared.recipe.cwd,
+        }),
+      );
+
+      if (recipeExecution._tag === "Left") {
+        return SandboxBackend.toBuildSnapshotErrorResult({
+          prepared,
+          sandboxId: created.right.sandboxId,
+          failedStep: "recipe",
+          message: recipeExecution.left.message,
+        });
+      }
+
+      if (recipeExecution.right.exitCode !== 0) {
+        return SandboxBackend.toBuildSnapshotErrorResult({
+          prepared,
+          sandboxId: created.right.sandboxId,
+          recipeExecution: recipeExecution.right,
+          failedStep: "recipe",
+          message: `Recipe "${prepared.recipe.name}" failed with exit code ${recipeExecution.right.exitCode}.`,
+        });
+      }
+
+      let userProfileExecution: ExecuteSandboxCommandResult | null = null;
+
+      if (prepared.userProfile) {
+        const executedUserProfile = yield* Effect.either(
+          backend.executeShellScript({
+            sandboxId: created.right.sandboxId,
+            script: prepared.userProfile.script,
+            cwd: prepared.userProfile.cwd,
+          }),
+        );
+
+        if (executedUserProfile._tag === "Left") {
+          return SandboxBackend.toBuildSnapshotErrorResult({
+            prepared,
+            sandboxId: created.right.sandboxId,
+            recipeExecution: recipeExecution.right,
+            failedStep: "userProfile",
+            message: executedUserProfile.left.message,
+          });
+        }
+
+        userProfileExecution = executedUserProfile.right;
+
+        if (userProfileExecution.exitCode !== 0) {
+          return SandboxBackend.toBuildSnapshotErrorResult({
+            prepared,
+            sandboxId: created.right.sandboxId,
+            recipeExecution: recipeExecution.right,
+            userProfileExecution,
+            failedStep: "userProfile",
+            message: `User profile "${prepared.userProfile.name ?? "profile"}" failed with exit code ${userProfileExecution.exitCode}.`,
+          });
+        }
+      }
+
+      const snapshot = yield* Effect.either(
+        backend.createSnapshotRaw({
+          sandboxId: created.right.sandboxId,
+        }),
+      );
+
+      if (snapshot._tag === "Left") {
+        return SandboxBackend.toBuildSnapshotErrorResult({
+          prepared,
+          sandboxId: created.right.sandboxId,
+          recipeExecution: recipeExecution.right,
+          userProfileExecution,
+          failedStep: "snapshot",
+          message: snapshot.left.message,
+        });
+      }
+
+      return {
+        sandboxId: created.right.sandboxId,
+        snapshotId: snapshot.right.snapshotId,
+        recipeName: prepared.recipe.name,
+        userProfileName: prepared.userProfile?.name ?? null,
+        recipeExecution: recipeExecution.right,
+        userProfileExecution,
+        failedStep: null,
+        error: null,
+      };
+    });
+  }
+
   stopSandbox(sandboxId: string): Effect.Effect<StopSandboxResult> {
     const preparedSandboxId = sandboxId.trim();
 
@@ -280,6 +420,44 @@ export abstract class SandboxBackend {
     };
   }
 
+  private prepareBuildSnapshotInput(
+    input: BuildSandboxSnapshotInput,
+  ): NormalizedBuildSandboxSnapshotInput {
+    return {
+      recipe: {
+        name: input.recipe.name.trim(),
+        script: input.recipe.script,
+        cwd: input.recipe.cwd?.trim() || undefined,
+      },
+      userProfile: input.userProfile
+        ? {
+            name: input.userProfile.name?.trim() || null,
+            script: input.userProfile.script,
+            cwd: input.userProfile.cwd?.trim() || undefined,
+          }
+        : null,
+    };
+  }
+
+  private executeShellScript(input: {
+    sandboxId: string;
+    script: string;
+    cwd: string | undefined;
+  }): Effect.Effect<ExecuteSandboxCommandResult, SandboxBackendError> {
+    const commandInput: NormalizedExecuteSandboxCommandInput = {
+      sandboxId: input.sandboxId,
+      command: "bash",
+      args: ["-lc", input.script],
+      cwd: input.cwd,
+    };
+
+    return this.executeRaw(commandInput).pipe(
+      Effect.map((execution) =>
+        SandboxBackend.toExecutionResult(commandInput, execution),
+      ),
+    );
+  }
+
   private static validateExecuteInput(
     input: NormalizedExecuteSandboxCommandInput,
   ): Effect.Effect<void, SandboxValidationError> {
@@ -296,6 +474,37 @@ export abstract class SandboxBackend {
     }
 
     return validatedSandboxId;
+  }
+
+  private static validateBuildSnapshotInput(
+    input: NormalizedBuildSandboxSnapshotInput,
+  ): Effect.Effect<void, SandboxValidationError> {
+    if (!input.recipe.name) {
+      return Effect.fail(
+        new SandboxValidationError({
+          message: "Recipe name is required.",
+        }),
+      );
+    }
+
+    if (!input.recipe.script.trim()) {
+      return Effect.fail(
+        new SandboxValidationError({
+          message: "Recipe script is required.",
+        }),
+      );
+    }
+
+    if (input.userProfile && !input.userProfile.script.trim()) {
+      return Effect.fail(
+        new SandboxValidationError({
+          message:
+            "User profile script is required when a user profile is provided.",
+        }),
+      );
+    }
+
+    return Effect.void;
   }
 
   private static validateSandboxId(
@@ -348,6 +557,43 @@ export abstract class SandboxBackend {
       error: message,
     };
   }
+
+  private static toExecutionResult(
+    input: NormalizedExecuteSandboxCommandInput,
+    execution: ExecuteSandboxCommandSuccess,
+  ): ExecuteSandboxCommandResult {
+    return {
+      sandboxId: execution.sandboxId,
+      command: input.command,
+      args: input.args,
+      cwd: input.cwd ?? null,
+      exitCode: execution.exitCode,
+      stdout: execution.stdout,
+      stderr: execution.stderr,
+      executedAt: new Date().toISOString(),
+      error: null,
+    };
+  }
+
+  private static toBuildSnapshotErrorResult(input: {
+    prepared: NormalizedBuildSandboxSnapshotInput;
+    failedStep: BuildSandboxSnapshotResult["failedStep"];
+    message: string;
+    sandboxId?: string;
+    recipeExecution?: ExecuteSandboxCommandResult | null;
+    userProfileExecution?: ExecuteSandboxCommandResult | null;
+  }): BuildSandboxSnapshotResult {
+    return {
+      sandboxId: input.sandboxId ?? null,
+      snapshotId: null,
+      recipeName: input.prepared.recipe.name,
+      userProfileName: input.prepared.userProfile?.name ?? null,
+      recipeExecution: input.recipeExecution ?? null,
+      userProfileExecution: input.userProfileExecution ?? null,
+      failedStep: input.failedStep,
+      error: input.message,
+    };
+  }
 }
 
 export class SandboxService extends Context.Tag("SandboxService")<
@@ -366,6 +612,11 @@ export const createSandboxProgram = Effect.flatMap(SandboxService, (sandbox) =>
 export const createSnapshotProgram = (sandboxId: string) =>
   Effect.flatMap(SandboxService, (sandbox) =>
     sandbox.createSnapshot(sandboxId),
+  );
+
+export const buildSandboxSnapshotProgram = (input: BuildSandboxSnapshotInput) =>
+  Effect.flatMap(SandboxService, (sandbox) =>
+    sandbox.buildSandboxSnapshot(input),
   );
 
 export const stopSandboxProgram = (sandboxId: string) =>

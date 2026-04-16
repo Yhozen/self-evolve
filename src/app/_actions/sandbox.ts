@@ -12,22 +12,22 @@ import type {
   SandboxListResult,
   StopSandboxResult,
 } from "@/lib/sandbox";
+import { runSandboxProgram } from "@/server/sandbox/runtime";
 import {
   buildSandboxSnapshotProgram,
-  getSandboxInventory,
-  runSandboxProgram,
-} from "@/server/sandbox/runtime";
-import {
   createSandboxProgram,
   createSnapshotProgram,
   deleteSnapshotProgram,
   executeSandboxCommandProgram,
+  listSandboxesProgram,
   stopSandboxProgram,
 } from "@/server/sandbox/service";
 import { VercelSandboxLive } from "@/server/sandbox/vercel-sandbox-live";
 
 export async function listSandboxes(): Promise<SandboxListResult> {
-  return getSandboxInventory();
+  return runSandboxProgram(
+    listSandboxesProgram.pipe(Effect.provide(VercelSandboxLive)),
+  );
 }
 
 export async function createSandbox(): Promise<CreateSandboxResult> {

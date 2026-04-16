@@ -53,6 +53,40 @@ export type ExecuteSandboxCommandResult = {
   error: string | null;
 };
 
+export type SandboxRecipeInput = {
+  name: string;
+  script: string;
+  cwd?: string;
+};
+
+export type SandboxUserProfileInput = {
+  name?: string;
+  script: string;
+  cwd?: string;
+};
+
+export type BuildSandboxSnapshotInput = {
+  recipe: SandboxRecipeInput;
+  userProfile?: SandboxUserProfileInput | null;
+};
+
+export type BuildSandboxSnapshotResult = {
+  sandboxId: string | null;
+  snapshotId: string | null;
+  recipeName: string;
+  userProfileName: string | null;
+  recipeExecution: ExecuteSandboxCommandResult | null;
+  userProfileExecution: ExecuteSandboxCommandResult | null;
+  failedStep:
+    | "validation"
+    | "createSandbox"
+    | "recipe"
+    | "userProfile"
+    | "snapshot"
+    | null;
+  error: string | null;
+};
+
 export type CreateSandboxResult = {
   sandboxId: string | null;
   sourceSnapshotId: string | null;

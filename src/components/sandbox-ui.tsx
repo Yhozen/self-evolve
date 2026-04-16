@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { type ReactNode, useState, useTransition } from "react";
 import {
   deleteSnapshot,
@@ -116,8 +115,8 @@ export function SnapshotSummaryPanel({
 }: SnapshotSummaryPanelProps) {
   return (
     <div className="rounded-2xl border border-border/70 bg-background/70 p-4">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div className="space-y-1.5">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)] xl:items-start">
+        <div className="min-w-0 space-y-1.5">
           <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
             Persistent Base
           </div>
@@ -141,34 +140,34 @@ export function SnapshotSummaryPanel({
           </p>
         </div>
 
-        <dl className="grid gap-3 text-sm sm:grid-cols-4">
-          <div className="rounded-xl bg-muted/50 p-3">
+        <dl className="grid w-full gap-3 text-sm sm:grid-cols-2 xl:grid-cols-2">
+          <div className="min-w-0 rounded-xl bg-muted/50 p-3">
             <dt className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
               Snapshots
             </dt>
-            <dd className="mt-2">{snapshotCount}</dd>
+            <dd className="mt-2 text-sm leading-6">{snapshotCount}</dd>
           </div>
-          <div className="rounded-xl bg-muted/50 p-3">
+          <div className="min-w-0 rounded-xl bg-muted/50 p-3">
             <dt className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
               Created
             </dt>
-            <dd className="mt-2">
+            <dd className="mt-2 break-words text-sm leading-6">
               {formatTimestamp(latestSnapshot?.createdAt ?? null)}
             </dd>
           </div>
-          <div className="rounded-xl bg-muted/50 p-3">
+          <div className="min-w-0 rounded-xl bg-muted/50 p-3">
             <dt className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
               Expires
             </dt>
-            <dd className="mt-2">
+            <dd className="mt-2 break-words text-sm leading-6">
               {formatTimestamp(latestSnapshot?.expiresAt ?? null)}
             </dd>
           </div>
-          <div className="rounded-xl bg-muted/50 p-3">
+          <div className="min-w-0 rounded-xl bg-muted/50 p-3">
             <dt className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
               Size
             </dt>
-            <dd className="mt-2">
+            <dd className="mt-2 break-words text-sm leading-6">
               {latestSnapshot
                 ? formatBytes(latestSnapshot.sizeBytes)
                 : "Not available"}
@@ -457,9 +456,6 @@ export function SandboxCardItem({
               </p>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row">
-              <Button variant="outline" asChild>
-                <Link href="/snapshots">Open Snapshots</Link>
-              </Button>
               <Button
                 variant="outline"
                 onClick={removeSandbox}

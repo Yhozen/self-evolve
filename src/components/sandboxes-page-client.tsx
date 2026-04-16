@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { createSandbox, listSandboxes } from "@/app/_actions/sandbox";
 import {
@@ -104,16 +105,19 @@ export function SandboxesPageClient({ initialData }: SandboxesPageClientProps) {
             </p>
             <div className="space-y-2">
               <h1 className="text-3xl font-semibold tracking-tight text-foreground lg:text-4xl">
-                Manage active sandboxes without mixing snapshot controls into
-                the same page.
+                Operate live sandboxes and hand off durable state to snapshots.
               </h1>
               <p className="text-base leading-7 text-muted-foreground">
                 Create or restore sandboxes, run commands, inspect execution
                 output, and stop instances when they are no longer needed.
+                Snapshot promotion stays in the dedicated snapshots workflow.
               </p>
             </div>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
+            <Button variant="outline" asChild>
+              <Link href="/snapshots">Open Snapshots</Link>
+            </Button>
             <Button onClick={createAndRefresh} disabled={isCreating}>
               {isCreating
                 ? "Creating..."
@@ -133,8 +137,8 @@ export function SandboxesPageClient({ initialData }: SandboxesPageClientProps) {
           <CardHeader className="border-b border-border/70">
             <CardTitle>Inventory</CardTitle>
             <CardDescription>
-              The current Vercel scope is split into live sandboxes on this page
-              and restore points on the Snapshots page.
+              The current Vercel scope is split into live sandboxes here and
+              restore points on the Snapshots page.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 pt-4 text-sm sm:grid-cols-3">
@@ -207,8 +211,8 @@ export function SandboxesPageClient({ initialData }: SandboxesPageClientProps) {
         <CardHeader className="border-b border-border/70">
           <CardTitle>Sandboxes</CardTitle>
           <CardDescription>
-            Each card owns lifecycle and command execution. Snapshot creation
-            has been moved to its own page.
+            Each card owns lifecycle and command execution. When a sandbox is
+            warmed the way you want, promote it from the Snapshots page.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-5 pt-5">
