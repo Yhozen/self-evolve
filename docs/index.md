@@ -20,7 +20,7 @@ Read `log.md` for recent chronological changes.
 
 - [Blueprints Index](blueprints/README.md) - Current and planned workflows for autonomous work.
 - [Docs Maintenance](blueprints/docs-maintenance.md) - How to ingest, query, and lint the docs wiki itself.
-- [Implementation Run](blueprints/implementation-run.md) - Planned workflow scaffold for code or content changes aligned to a goal.
+- [Implementation Run](blueprints/implementation-run.md) - Planned v1 workflow for one-task, one-PR sandbox-backed implementation runs.
 - [Evaluation-Only Run](blueprints/evaluation-only.md) - Planned workflow scaffold for assessing existing work without implementing.
 - [PR Preparation](blueprints/pr-preparation.md) - Planned workflow scaffold for preparing reviewable changes once work is complete.
 
@@ -37,10 +37,13 @@ Read `log.md` for recent chronological changes.
 - [0002: Abstract Sandbox Backend And Create Runnable Sandboxes](decisions/0002-abstract-sandbox-backend-and-create-runnable-sandboxes.md) - Why sandbox operations now go through an Effect-backed backend boundary and create flow.
 - [0003: Use Snapshots For Persistent Sandbox Restores](decisions/0003-use-snapshots-for-persistent-sandbox-restores.md) - Why persistent sandbox behavior now restores from the latest snapshot instead of treating stopped sandboxes as durable compute.
 - [0004: Expose Basic Sandbox And Snapshot Management](decisions/0004-expose-basic-sandbox-and-snapshot-management.md) - Why sandbox removal is modeled as stop and snapshots are listed and deleted as first-class resources.
+- [0005: Use One PR Per Task For Initial Sandbox Runs](decisions/0005-use-one-pr-per-task-for-initial-sandbox-runs.md) - Why the first autonomous workflow uses one branch and one draft PR per accepted task.
 
 ## Specs
 
 - [Specs Index](specs/README.md) - Home for project or feature specs and proposed work.
+- [Sandbox Task Runner V1](specs/sandbox-task-runner-v1.md) - Initial one-task, one-sandbox, one-branch, one-draft-PR execution model.
+- [Sandbox Task Runner Follow-Ups](specs/sandbox-task-runner-follow-ups.md) - Deferred decisions and technical debt accepted for the initial task runner.
 - [Superpowers Specs](superpowers/specs/README.md) - Tool-generated design specs and brainstorming artifacts when those workflows are used.
 
 ## Glossary

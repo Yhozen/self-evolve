@@ -2,11 +2,13 @@
 
 Blueprints are reusable workflows for autonomous work.
 
-Today, only the docs-maintenance blueprint is concrete. The others are explicit scaffolds for future project-specific workflows.
+The docs-maintenance and implementation-run blueprints are now concrete enough
+to describe the current operating model. The others remain scaffolds.
 
 - [Docs Maintenance](docs-maintenance.md) - Maintain the wiki itself.
-- [Implementation Run](implementation-run.md) - Placeholder workflow for bounded implementation work.
+- [Implementation Run](implementation-run.md) - Planned v1 workflow for one-task, one-PR autonomous implementation runs.
 - [Evaluation-Only Run](evaluation-only.md) - Placeholder workflow for checking an existing change or artifact.
 - [PR Preparation](pr-preparation.md) - Placeholder workflow for turning verified work into a reviewable proposal.
 
-These pages should become more concrete as the repository gains real tooling and a real goal.
+These pages should continue becoming more concrete as the repository gains real
+tooling and a real goal.

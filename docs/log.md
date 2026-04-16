@@ -37,3 +37,15 @@ Use one entry per meaningful docs operation with the heading format `## [YYYY-MM
 - Added a backend-only sandbox build flow that creates a fresh sandbox, runs a recipe script, optionally runs a user profile script, and snapshots the result.
 - Added typed recipe/profile build results and a server action wrapper without changing the current UI.
 - Recorded that arbitrary snapshot layering remains deferred even though recipe-driven snapshot creation is now implemented.
+
+## [2026-04-16] docs | sandbox task runner v1
+
+- Added decision record `0005-use-one-pr-per-task-for-initial-sandbox-runs.md`.
+- Added spec `sandbox-task-runner-v1.md` covering assumptions, workflow, state machine, publish rules, and deferred work for the initial sandbox-backed task runner.
+- Replaced the placeholder implementation blueprint with the planned one-task, one-PR sandbox execution flow.
+- Updated architecture, decision, spec, and docs indexes so the new workflow documents are discoverable.
+
+## [2026-04-16] docs | sandbox task runner follow-ups
+
+- Added `sandbox-task-runner-follow-ups.md` to track deferred decisions and intentional technical debt for the initial task runner.
+- Updated the spec indexes so the follow-up page is discoverable alongside the v1 workflow spec.

@@ -6,3 +6,4 @@ Decision records capture durable trade-offs and architectural choices.
 - [0002: Abstract Sandbox Backend And Create Runnable Sandboxes](0002-abstract-sandbox-backend-and-create-runnable-sandboxes.md) - Introduce an Effect-backed sandbox service boundary and a create-first UI flow for runnable sandboxes.
 - [0003: Use Snapshots For Persistent Sandbox Restores](0003-use-snapshots-for-persistent-sandbox-restores.md) - Treat persistence as snapshot-backed restore and expose that workflow in the sandbox console.
 - [0004: Expose Basic Sandbox And Snapshot Management](0004-expose-basic-sandbox-and-snapshot-management.md) - Add stop, snapshot listing, and snapshot deletion so the console covers the basic operational lifecycle.
+- [0005: Use One PR Per Task For Initial Sandbox Runs](0005-use-one-pr-per-task-for-initial-sandbox-runs.md) - Start with a minimal one-task, one-branch, one-draft-PR autonomous workflow instead of stacked execution.
