@@ -14,23 +14,20 @@ import type {
 } from "@/lib/sandbox";
 import {
   buildSandboxSnapshotProgram,
+  getSandboxInventory,
+  runSandboxProgram,
+} from "@/server/sandbox/runtime";
+import {
   createSandboxProgram,
   createSnapshotProgram,
   deleteSnapshotProgram,
   executeSandboxCommandProgram,
-  listSandboxesProgram,
   stopSandboxProgram,
 } from "@/server/sandbox/service";
 import { VercelSandboxLive } from "@/server/sandbox/vercel-sandbox-live";
 
-function runSandboxProgram<T>(program: Effect.Effect<T, never, never>) {
-  return Effect.runPromise(program);
-}
-
 export async function listSandboxes(): Promise<SandboxListResult> {
-  return runSandboxProgram(
-    listSandboxesProgram.pipe(Effect.provide(VercelSandboxLive)),
-  );
+  return getSandboxInventory();
 }
 
 export async function createSandbox(): Promise<CreateSandboxResult> {
