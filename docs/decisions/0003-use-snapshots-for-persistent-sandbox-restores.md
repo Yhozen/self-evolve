@@ -36,6 +36,19 @@ The console UI will expose that model directly by:
 - preferring create-from-snapshot over cold create when a snapshot exists
 - adding a `Save Snapshot` action per running sandbox
 
+For the next iteration of this workflow, the intended higher-level model is:
+
+- a recipe that describes how to warm a sandbox before snapshotting it
+- an optional user profile that applies lightweight user-specific configuration
+
+That keeps the current system simple while still giving the snapshot lifecycle a
+clear future direction beyond ad hoc manual warming.
+
+Dockerfile-like snapshot customization is explicitly deferred. A future version
+may allow a recipe to start from an existing snapshot and apply additional
+steps, but the current model should remain a straightforward
+create-sandbox-run-script-create-snapshot flow.
+
 ## Consequences
 
 - The persistence model is explicit and matches the current Vercel platform
@@ -47,3 +60,7 @@ The console UI will expose that model directly by:
 - Persistence depends on snapshot listing for the configured Vercel project, so
   restore behavior now relies on `VERCEL_PROJECT_ID` being available to the app
   server.
+- Future snapshot composition should be designed deliberately rather than added
+  as implicit layering. If Dockerfile-like behavior is introduced later, it
+  should be modeled as a recipe feature on top of snapshots rather than as the
+  default persistence path.

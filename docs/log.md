@@ -26,4 +26,8 @@ Use one entry per meaningful docs operation with the heading format `## [YYYY-MM
 
 - Added decision record `0004-expose-basic-sandbox-and-snapshot-management.md`.
 - Recorded that the sandbox console now exposes stop for sandboxes and list/delete for snapshots through the Effect-backed service boundary.
-- Recorded that sandbox removal is explicitly modeled as stop because the current Vercel lifecycle does not expose sandbox hard deletion.
+
+## [2026-04-15] docs | snapshot recipe direction
+
+- Updated `0003-use-snapshots-for-persistent-sandbox-restores.md` to capture the near-term design direction of `recipe + optional user profile`.
+- Recorded that Dockerfile-like snapshot customization is a future idea and not part of the current simplified snapshot workflow.
