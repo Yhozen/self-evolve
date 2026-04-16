@@ -21,3 +21,9 @@ Use one entry per meaningful docs operation with the heading format `## [YYYY-MM
 - Added decision record `0003-use-snapshots-for-persistent-sandbox-restores.md`.
 - Recorded that persistent sandbox behavior now uses Vercel snapshots as the reusable base for new sandboxes.
 - Recorded that the sandbox console exposes the latest snapshot, restores new sandboxes from it when available, and allows saving a running sandbox as the next persistent base.
+
+## [2026-04-15] decision | sandbox and snapshot management surface
+
+- Added decision record `0004-expose-basic-sandbox-and-snapshot-management.md`.
+- Recorded that the sandbox console now exposes stop for sandboxes and list/delete for snapshots through the Effect-backed service boundary.
+- Recorded that sandbox removal is explicitly modeled as stop because the current Vercel lifecycle does not expose sandbox hard deletion.

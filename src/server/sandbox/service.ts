@@ -1,14 +1,14 @@
-import "server-only";
-
 import { Context, Data, Effect } from "effect";
 import type {
   CreateSandboxResult,
   CreateSnapshotResult,
+  DeleteSnapshotResult,
   ExecuteSandboxCommandInput,
   ExecuteSandboxCommandResult,
   SandboxListResult,
   SandboxSummary,
   SnapshotSummary,
+  StopSandboxResult,
 } from "@/lib/sandbox";
 
 type NormalizedExecuteSandboxCommandInput = {
@@ -36,6 +36,15 @@ export type CreateSnapshotSuccess = {
   expiresAt: string | null;
 };
 
+export type StopSandboxSuccess = {
+  sandboxId: string;
+  status: string;
+};
+
+export type DeleteSnapshotSuccess = {
+  snapshotId: string;
+};
+
 export class SandboxValidationError extends Data.TaggedError(
   "SandboxValidationError",
 )<{
@@ -61,8 +70,8 @@ export abstract class SandboxBackend {
     SandboxBackendError
   >;
 
-  protected abstract latestSnapshotRaw(): Effect.Effect<
-    SnapshotSummary | null,
+  protected abstract listSnapshotsRaw(): Effect.Effect<
+    ReadonlyArray<SnapshotSummary>,
     SandboxBackendError
   >;
 
@@ -74,21 +83,31 @@ export abstract class SandboxBackend {
     sandboxId: string;
   }): Effect.Effect<CreateSnapshotSuccess, SandboxBackendError>;
 
+  protected abstract stopSandboxRaw(input: {
+    sandboxId: string;
+  }): Effect.Effect<StopSandboxSuccess, SandboxBackendError>;
+
+  protected abstract deleteSnapshotRaw(input: {
+    snapshotId: string;
+  }): Effect.Effect<DeleteSnapshotSuccess, SandboxBackendError>;
+
   listSandboxes(): Effect.Effect<SandboxListResult> {
     return Effect.all({
       sandboxes: this.listRaw(),
-      latestSnapshot: this.latestSnapshotRaw().pipe(
-        Effect.catchTag("SandboxBackendError", () => Effect.succeed(null)),
+      snapshots: this.listSnapshotsRaw().pipe(
+        Effect.catchTag("SandboxBackendError", () => Effect.succeed([])),
       ),
     }).pipe(
-      Effect.map(({ sandboxes, latestSnapshot }) => ({
+      Effect.map(({ sandboxes, snapshots }) => ({
         sandboxes: [...sandboxes],
-        latestSnapshot,
+        snapshots: [...snapshots],
+        latestSnapshot: SandboxBackend.getLatestSnapshot(snapshots),
         error: null,
       })),
       Effect.catchTag("SandboxBackendError", (error) =>
         Effect.succeed({
           sandboxes: [],
+          snapshots: [],
           latestSnapshot: null,
           error: error.message,
         }),
@@ -131,7 +150,8 @@ export abstract class SandboxBackend {
     const backend = this;
 
     return Effect.gen(function* () {
-      const latestSnapshot = yield* backend.latestSnapshotRaw();
+      const snapshots = yield* backend.listSnapshotsRaw();
+      const latestSnapshot = SandboxBackend.getLatestSnapshot(snapshots);
       const created = yield* backend.createRaw(
         latestSnapshot?.snapshotId ?? null,
       );
@@ -188,6 +208,65 @@ export abstract class SandboxBackend {
     );
   }
 
+  stopSandbox(sandboxId: string): Effect.Effect<StopSandboxResult> {
+    const preparedSandboxId = sandboxId.trim();
+
+    return SandboxBackend.validateSandboxId(preparedSandboxId).pipe(
+      Effect.flatMap(() =>
+        this.stopSandboxRaw({
+          sandboxId: preparedSandboxId,
+        }),
+      ),
+      Effect.map((sandbox) => ({
+        sandboxId: sandbox.sandboxId,
+        status: sandbox.status,
+        error: null,
+      })),
+      Effect.catchTags({
+        SandboxValidationError: (error) =>
+          Effect.succeed({
+            sandboxId: preparedSandboxId,
+            status: null,
+            error: error.message,
+          }),
+        SandboxBackendError: (error) =>
+          Effect.succeed({
+            sandboxId: preparedSandboxId,
+            status: null,
+            error: error.message,
+          }),
+      }),
+    );
+  }
+
+  deleteSnapshot(snapshotId: string): Effect.Effect<DeleteSnapshotResult> {
+    const preparedSnapshotId = snapshotId.trim();
+
+    return SandboxBackend.validateSnapshotId(preparedSnapshotId).pipe(
+      Effect.flatMap(() =>
+        this.deleteSnapshotRaw({
+          snapshotId: preparedSnapshotId,
+        }),
+      ),
+      Effect.map((snapshot) => ({
+        snapshotId: snapshot.snapshotId,
+        error: null,
+      })),
+      Effect.catchTags({
+        SandboxValidationError: (error) =>
+          Effect.succeed({
+            snapshotId: preparedSnapshotId,
+            error: error.message,
+          }),
+        SandboxBackendError: (error) =>
+          Effect.succeed({
+            snapshotId: preparedSnapshotId,
+            error: error.message,
+          }),
+      }),
+    );
+  }
+
   private prepareExecuteInput(
     input: ExecuteSandboxCommandInput,
   ): NormalizedExecuteSandboxCommandInput {
@@ -233,6 +312,26 @@ export abstract class SandboxBackend {
     return Effect.void;
   }
 
+  private static validateSnapshotId(
+    snapshotId: string,
+  ): Effect.Effect<void, SandboxValidationError> {
+    if (!snapshotId) {
+      return Effect.fail(
+        new SandboxValidationError({
+          message: "Snapshot ID is required.",
+        }),
+      );
+    }
+
+    return Effect.void;
+  }
+
+  private static getLatestSnapshot(
+    snapshots: ReadonlyArray<SnapshotSummary>,
+  ): SnapshotSummary | null {
+    return snapshots.find((snapshot) => snapshot.status === "created") ?? null;
+  }
+
   private static toErrorResult(
     input: NormalizedExecuteSandboxCommandInput,
     message: string,
@@ -267,6 +366,14 @@ export const createSandboxProgram = Effect.flatMap(SandboxService, (sandbox) =>
 export const createSnapshotProgram = (sandboxId: string) =>
   Effect.flatMap(SandboxService, (sandbox) =>
     sandbox.createSnapshot(sandboxId),
+  );
+
+export const stopSandboxProgram = (sandboxId: string) =>
+  Effect.flatMap(SandboxService, (sandbox) => sandbox.stopSandbox(sandboxId));
+
+export const deleteSnapshotProgram = (snapshotId: string) =>
+  Effect.flatMap(SandboxService, (sandbox) =>
+    sandbox.deleteSnapshot(snapshotId),
   );
 
 export const executeSandboxCommandProgram = (

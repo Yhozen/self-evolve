@@ -4,15 +4,19 @@ import { Effect } from "effect";
 import type {
   CreateSandboxResult,
   CreateSnapshotResult,
+  DeleteSnapshotResult,
   ExecuteSandboxCommandInput,
   ExecuteSandboxCommandResult,
   SandboxListResult,
+  StopSandboxResult,
 } from "@/lib/sandbox";
 import {
   createSandboxProgram,
   createSnapshotProgram,
+  deleteSnapshotProgram,
   executeSandboxCommandProgram,
   listSandboxesProgram,
+  stopSandboxProgram,
 } from "@/server/sandbox/service";
 import { VercelSandboxLive } from "@/server/sandbox/vercel-sandbox-live";
 
@@ -37,6 +41,22 @@ export async function snapshotSandbox(
 ): Promise<CreateSnapshotResult> {
   return runSandboxProgram(
     createSnapshotProgram(sandboxId).pipe(Effect.provide(VercelSandboxLive)),
+  );
+}
+
+export async function stopSandbox(
+  sandboxId: string,
+): Promise<StopSandboxResult> {
+  return runSandboxProgram(
+    stopSandboxProgram(sandboxId).pipe(Effect.provide(VercelSandboxLive)),
+  );
+}
+
+export async function deleteSnapshot(
+  snapshotId: string,
+): Promise<DeleteSnapshotResult> {
+  return runSandboxProgram(
+    deleteSnapshotProgram(snapshotId).pipe(Effect.provide(VercelSandboxLive)),
   );
 }
 

@@ -12,16 +12,20 @@ import {
 import type {
   CreateSandboxResult,
   CreateSnapshotResult,
+  DeleteSnapshotResult,
   ExecuteSandboxCommandResult,
   SandboxListResult,
   SandboxSummary,
   SnapshotSummary,
+  StopSandboxResult,
 } from "@/lib/sandbox";
 import {
   createSandbox,
+  deleteSnapshot,
   executeSandboxCommand,
   listSandboxes,
   snapshotSandbox,
+  stopSandbox,
 } from "./_actions/sandbox";
 
 type SandboxConsoleProps = {
@@ -30,7 +34,14 @@ type SandboxConsoleProps = {
 
 type SandboxCardItemProps = {
   sandbox: SandboxSummary;
+  onSandboxStopped: (result: StopSandboxResult) => Promise<void>;
   onSnapshotCreated: (result: CreateSnapshotResult) => Promise<void>;
+};
+
+type SnapshotCardItemProps = {
+  isLatest: boolean;
+  onDeleted: (result: DeleteSnapshotResult) => Promise<void>;
+  snapshot: SnapshotSummary;
 };
 
 function formatTimestamp(value: string | null) {
@@ -87,9 +98,11 @@ function StatusBadge({ status }: { status: string }) {
   const tone =
     status === "running"
       ? "bg-emerald-500/12 text-emerald-700 ring-emerald-600/20"
-      : status === "pending" || status === "snapshotting"
+      : status === "pending" ||
+          status === "snapshotting" ||
+          status === "stopping"
         ? "bg-amber-500/12 text-amber-700 ring-amber-600/20"
-        : status === "failed" || status === "aborted"
+        : status === "failed" || status === "aborted" || status === "deleted"
           ? "bg-rose-500/12 text-rose-700 ring-rose-600/20"
           : "bg-muted text-muted-foreground ring-foreground/10";
 
@@ -117,8 +130,10 @@ function OutputPanel({ title, value }: { title: string; value: string }) {
 
 function SnapshotSummaryPanel({
   latestSnapshot,
+  snapshotCount,
 }: {
   latestSnapshot: SnapshotSummary | null;
+  snapshotCount: number;
 }) {
   return (
     <div className="rounded-2xl border border-border/70 bg-background/70 p-4">
@@ -147,41 +162,146 @@ function SnapshotSummaryPanel({
             with `pnpm`, so `pnpm dlx ...` can run immediately before you save a
             snapshot.
           </p>
+          <p className="text-sm text-muted-foreground">
+            Sandboxes can be stopped, but snapshots are the durable artifact you
+            can delete and recreate directly.
+          </p>
         </div>
 
-        {latestSnapshot ? (
-          <dl className="grid gap-3 text-sm sm:grid-cols-3">
-            <div className="rounded-xl bg-muted/50 p-3">
-              <dt className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                Created
-              </dt>
-              <dd className="mt-2">
-                {formatTimestamp(latestSnapshot.createdAt)}
-              </dd>
-            </div>
-            <div className="rounded-xl bg-muted/50 p-3">
-              <dt className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                Expires
-              </dt>
-              <dd className="mt-2">
-                {formatTimestamp(latestSnapshot.expiresAt)}
-              </dd>
-            </div>
-            <div className="rounded-xl bg-muted/50 p-3">
-              <dt className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                Size
-              </dt>
-              <dd className="mt-2">{formatBytes(latestSnapshot.sizeBytes)}</dd>
-            </div>
-          </dl>
-        ) : null}
+        <dl className="grid gap-3 text-sm sm:grid-cols-4">
+          <div className="rounded-xl bg-muted/50 p-3">
+            <dt className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+              Snapshots
+            </dt>
+            <dd className="mt-2">{snapshotCount}</dd>
+          </div>
+          <div className="rounded-xl bg-muted/50 p-3">
+            <dt className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+              Created
+            </dt>
+            <dd className="mt-2">
+              {formatTimestamp(latestSnapshot?.createdAt ?? null)}
+            </dd>
+          </div>
+          <div className="rounded-xl bg-muted/50 p-3">
+            <dt className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+              Expires
+            </dt>
+            <dd className="mt-2">
+              {formatTimestamp(latestSnapshot?.expiresAt ?? null)}
+            </dd>
+          </div>
+          <div className="rounded-xl bg-muted/50 p-3">
+            <dt className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+              Size
+            </dt>
+            <dd className="mt-2">
+              {latestSnapshot
+                ? formatBytes(latestSnapshot.sizeBytes)
+                : "Not available"}
+            </dd>
+          </div>
+        </dl>
       </div>
     </div>
   );
 }
 
-function SandboxCardItem({ sandbox, onSnapshotCreated }: SandboxCardItemProps) {
+function SnapshotCardItem({
+  isLatest,
+  onDeleted,
+  snapshot,
+}: SnapshotCardItemProps) {
+  const canDeleteSnapshot = snapshot.status !== "deleted";
+  const [isDeleting, startDeleteTransition] = useTransition();
+
+  const removeSnapshot = () => {
+    if (!canDeleteSnapshot) {
+      return;
+    }
+
+    startDeleteTransition(async () => {
+      const deleted = await deleteSnapshot(snapshot.snapshotId);
+      await onDeleted(deleted);
+    });
+  };
+
+  return (
+    <Card className="border border-border/70 bg-card/90 shadow-sm backdrop-blur">
+      <CardHeader className="gap-4 border-b border-border/70">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div className="space-y-2">
+            <CardTitle className="font-mono text-sm leading-6 break-all">
+              {snapshot.snapshotId}
+            </CardTitle>
+            <CardDescription className="space-y-1 text-sm">
+              <p>Source sandbox {snapshot.sourceSandboxId}</p>
+              <p>{isLatest ? "Current restore base" : "Stored snapshot"}</p>
+            </CardDescription>
+          </div>
+          <div className="flex items-center gap-3">
+            {isLatest ? (
+              <span className="rounded-full bg-foreground px-2.5 py-1 text-xs font-medium text-background">
+                Latest
+              </span>
+            ) : null}
+            <StatusBadge status={snapshot.status} />
+          </div>
+        </div>
+      </CardHeader>
+
+      <CardContent className="grid gap-4 pt-2">
+        <dl className="grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-xl bg-muted/50 p-3">
+            <dt className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+              Region
+            </dt>
+            <dd className="mt-2">{snapshot.region}</dd>
+          </div>
+          <div className="rounded-xl bg-muted/50 p-3">
+            <dt className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+              Size
+            </dt>
+            <dd className="mt-2">{formatBytes(snapshot.sizeBytes)}</dd>
+          </div>
+          <div className="rounded-xl bg-muted/50 p-3">
+            <dt className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+              Created
+            </dt>
+            <dd className="mt-2">{formatTimestamp(snapshot.createdAt)}</dd>
+          </div>
+          <div className="rounded-xl bg-muted/50 p-3">
+            <dt className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+              Expires
+            </dt>
+            <dd className="mt-2">{formatTimestamp(snapshot.expiresAt)}</dd>
+          </div>
+        </dl>
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-muted-foreground">
+            Deleting a snapshot removes that saved restore point from Vercel.
+          </p>
+          <Button
+            variant="outline"
+            onClick={removeSnapshot}
+            disabled={isDeleting || !canDeleteSnapshot}
+          >
+            {isDeleting ? "Deleting..." : "Delete Snapshot"}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SandboxCardItem({
+  sandbox,
+  onSandboxStopped,
+  onSnapshotCreated,
+}: SandboxCardItemProps) {
   const canRunCommand = sandbox.status === "running";
+  const canStopSandbox = ["running", "pending"].includes(sandbox.status);
   const [command, setCommand] = useState("pnpm");
   const [args, setArgs] = useState("dlx\ncowsay\nhi from the sandbox");
   const [cwd, setCwd] = useState(sandbox.cwd);
@@ -190,6 +310,7 @@ function SandboxCardItem({ sandbox, onSnapshotCreated }: SandboxCardItemProps) {
   );
   const [isRunning, startRunTransition] = useTransition();
   const [isSnapshotting, startSnapshotTransition] = useTransition();
+  const [isStopping, startStopTransition] = useTransition();
 
   const runCommand = () => {
     if (!canRunCommand) {
@@ -219,6 +340,17 @@ function SandboxCardItem({ sandbox, onSnapshotCreated }: SandboxCardItemProps) {
     startSnapshotTransition(async () => {
       const created = await snapshotSandbox(sandbox.sandboxId);
       await onSnapshotCreated(created);
+    });
+  };
+
+  const removeSandbox = () => {
+    if (!canStopSandbox) {
+      return;
+    }
+
+    startStopTransition(async () => {
+      const stopped = await stopSandbox(sandbox.sandboxId);
+      await onSandboxStopped(stopped);
     });
   };
 
@@ -350,19 +482,26 @@ function SandboxCardItem({ sandbox, onSnapshotCreated }: SandboxCardItemProps) {
                 The default command runs `pnpm dlx cowsay "hi from the
                 sandbox"`.
               </p>
-              {!canRunCommand ? (
-                <p className="text-sm text-amber-700">
-                  This sandbox is not runnable. Create a new sandbox or refresh
-                  until one is running.
-                </p>
-              ) : (
+              {canRunCommand ? (
                 <p className="text-sm text-muted-foreground">
                   Save Snapshot freezes this sandbox and turns it into the next
                   persistent base.
                 </p>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Vercel sandboxes can be stopped, but not hard-deleted from the
+                  API.
+                </p>
               )}
             </div>
             <div className="flex flex-col gap-3 sm:flex-row">
+              <Button
+                variant="outline"
+                onClick={removeSandbox}
+                disabled={isStopping || !canStopSandbox}
+              >
+                {isStopping ? "Stopping..." : "Stop Sandbox"}
+              </Button>
               <Button
                 variant="outline"
                 onClick={saveSnapshot}
@@ -417,6 +556,7 @@ function SandboxCardItem({ sandbox, onSnapshotCreated }: SandboxCardItemProps) {
 
 export function SandboxConsole({ initialData }: SandboxConsoleProps) {
   const [sandboxes, setSandboxes] = useState(initialData.sandboxes);
+  const [snapshots, setSnapshots] = useState(initialData.snapshots);
   const [latestSnapshot, setLatestSnapshot] = useState(
     initialData.latestSnapshot,
   );
@@ -426,11 +566,15 @@ export function SandboxConsole({ initialData }: SandboxConsoleProps) {
   );
   const [snapshotResult, setSnapshotResult] =
     useState<CreateSnapshotResult | null>(null);
+  const [stopResult, setStopResult] = useState<StopSandboxResult | null>(null);
+  const [deleteSnapshotResult, setDeleteSnapshotResult] =
+    useState<DeleteSnapshotResult | null>(null);
   const [isRefreshing, startRefreshTransition] = useTransition();
   const [isCreating, startCreateTransition] = useTransition();
 
   const applyData = (nextData: SandboxListResult) => {
     setSandboxes(nextData.sandboxes);
+    setSnapshots(nextData.snapshots);
     setLatestSnapshot(nextData.latestSnapshot);
     setError(nextData.error);
   };
@@ -438,6 +582,13 @@ export function SandboxConsole({ initialData }: SandboxConsoleProps) {
   const refreshData = async () => {
     const nextData = await listSandboxes();
     applyData(nextData);
+  };
+
+  const resetMessages = () => {
+    setCreateResult(null);
+    setSnapshotResult(null);
+    setStopResult(null);
+    setDeleteSnapshotResult(null);
   };
 
   const refresh = () => {
@@ -448,9 +599,7 @@ export function SandboxConsole({ initialData }: SandboxConsoleProps) {
 
   const createAndRefresh = () => {
     startCreateTransition(async () => {
-      setCreateResult(null);
-      setSnapshotResult(null);
-
+      resetMessages();
       const created = await createSandbox();
       setCreateResult(created);
 
@@ -464,11 +613,35 @@ export function SandboxConsole({ initialData }: SandboxConsoleProps) {
   };
 
   const handleSnapshotCreated = async (created: CreateSnapshotResult) => {
+    resetMessages();
     setSnapshotResult(created);
-    setCreateResult(null);
 
     if (created.error) {
       setError(created.error);
+      return;
+    }
+
+    await refreshData();
+  };
+
+  const handleSandboxStopped = async (stopped: StopSandboxResult) => {
+    resetMessages();
+    setStopResult(stopped);
+
+    if (stopped.error) {
+      setError(stopped.error);
+      return;
+    }
+
+    await refreshData();
+  };
+
+  const handleSnapshotDeleted = async (deleted: DeleteSnapshotResult) => {
+    resetMessages();
+    setDeleteSnapshotResult(deleted);
+
+    if (deleted.error) {
+      setError(deleted.error);
       return;
     }
 
@@ -483,9 +656,9 @@ export function SandboxConsole({ initialData }: SandboxConsoleProps) {
             <div className="space-y-1">
               <CardTitle>Current sandboxes</CardTitle>
               <CardDescription>
-                Create fresh sandboxes, restore from the latest snapshot when
-                available, save a running sandbox as the next persistent base,
-                and run ad hoc commands directly against live instances.
+                Create or restore sandboxes, stop running ones, save snapshots,
+                delete snapshots, and run ad hoc commands directly against live
+                instances.
               </CardDescription>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row">
@@ -508,7 +681,10 @@ export function SandboxConsole({ initialData }: SandboxConsoleProps) {
         </CardHeader>
 
         <CardContent className="flex flex-col gap-4 pt-2">
-          <SnapshotSummaryPanel latestSnapshot={latestSnapshot} />
+          <SnapshotSummaryPanel
+            latestSnapshot={latestSnapshot}
+            snapshotCount={snapshots.length}
+          />
 
           {createResult?.sandboxId ? (
             <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/8 px-4 py-3 text-sm text-emerald-700">
@@ -537,6 +713,19 @@ export function SandboxConsole({ initialData }: SandboxConsoleProps) {
             </div>
           ) : null}
 
+          {stopResult?.sandboxId && !stopResult.error ? (
+            <div className="rounded-xl border border-amber-500/25 bg-amber-500/8 px-4 py-3 text-sm text-amber-800">
+              Stopped sandbox {stopResult.sandboxId}. Current status:{" "}
+              {stopResult.status ?? "unknown"}.
+            </div>
+          ) : null}
+
+          {deleteSnapshotResult?.snapshotId && !deleteSnapshotResult.error ? (
+            <div className="rounded-xl border border-amber-500/25 bg-amber-500/8 px-4 py-3 text-sm text-amber-800">
+              Deleted snapshot {deleteSnapshotResult.snapshotId}.
+            </div>
+          ) : null}
+
           <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
             <span>{sandboxes.length} sandboxes</span>
             <span>
@@ -556,6 +745,7 @@ export function SandboxConsole({ initialData }: SandboxConsoleProps) {
               }{" "}
               transitioning
             </span>
+            <span>{snapshots.length} snapshots</span>
           </div>
 
           {error ? (
@@ -574,7 +764,38 @@ export function SandboxConsole({ initialData }: SandboxConsoleProps) {
                 <SandboxCardItem
                   key={sandbox.sandboxId}
                   sandbox={sandbox}
+                  onSandboxStopped={handleSandboxStopped}
                   onSnapshotCreated={handleSnapshotCreated}
+                />
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="border border-border/70 bg-card/90 shadow-sm backdrop-blur">
+        <CardHeader className="border-b border-border/70">
+          <div className="space-y-1">
+            <CardTitle>Snapshots</CardTitle>
+            <CardDescription>
+              Inspect saved restore points and remove ones you no longer need.
+            </CardDescription>
+          </div>
+        </CardHeader>
+
+        <CardContent className="flex flex-col gap-4 pt-2">
+          {snapshots.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-border bg-muted/30 px-6 py-10 text-center text-sm text-muted-foreground">
+              No snapshots were returned by the current Vercel project.
+            </div>
+          ) : (
+            <div className="grid gap-5">
+              {snapshots.map((snapshot) => (
+                <SnapshotCardItem
+                  key={snapshot.snapshotId}
+                  isLatest={snapshot.snapshotId === latestSnapshot?.snapshotId}
+                  onDeleted={handleSnapshotDeleted}
+                  snapshot={snapshot}
                 />
               ))}
             </div>

@@ -29,6 +29,7 @@ export type SnapshotSummary = {
 
 export type SandboxListResult = {
   sandboxes: SandboxSummary[];
+  snapshots: SnapshotSummary[];
   latestSnapshot: SnapshotSummary | null;
   error: string | null;
 };
@@ -63,5 +64,16 @@ export type CreateSnapshotResult = {
   sandboxId: string;
   snapshotId: string | null;
   expiresAt: string | null;
+  error: string | null;
+};
+
+export type StopSandboxResult = {
+  sandboxId: string;
+  status: string | null;
+  error: string | null;
+};
+
+export type DeleteSnapshotResult = {
+  snapshotId: string;
   error: string | null;
 };

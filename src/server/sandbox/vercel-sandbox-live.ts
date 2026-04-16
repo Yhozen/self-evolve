@@ -1,15 +1,15 @@
-import "server-only";
-
 import { Sandbox, Snapshot } from "@vercel/sandbox";
 import { Effect, Layer } from "effect";
 import type { SandboxSummary, SnapshotSummary } from "@/lib/sandbox";
 import {
   type CreateSandboxSuccess,
   type CreateSnapshotSuccess,
+  type DeleteSnapshotSuccess,
   type ExecuteSandboxCommandSuccess,
   SandboxBackend,
   SandboxBackendError,
   SandboxService,
+  type StopSandboxSuccess,
 } from "./service";
 
 type SandboxListItem = {
@@ -39,6 +39,12 @@ type SnapshotListItem = {
   createdAt: number;
   updatedAt: number;
   expiresAt?: number;
+};
+
+type SnapshotCredentials = {
+  projectId: string;
+  teamId: string;
+  token: string;
 };
 
 function toSandboxSummary(sandbox: SandboxListItem): SandboxSummary {
@@ -119,7 +125,7 @@ function getOidcClaims() {
   }
 }
 
-function getSnapshotCredentials() {
+function getSnapshotCredentials(): SnapshotCredentials | null {
   const oidcClaims = getOidcClaims();
   const token =
     process.env.VERCEL_TOKEN?.trim() ?? process.env.VERCEL_OIDC_TOKEN?.trim();
@@ -139,6 +145,24 @@ function getSnapshotCredentials() {
     teamId,
     token,
   };
+}
+
+function requireSnapshotCredentials(): Effect.Effect<
+  SnapshotCredentials,
+  SandboxBackendError
+> {
+  const snapshotCredentials = getSnapshotCredentials();
+
+  if (snapshotCredentials) {
+    return Effect.succeed(snapshotCredentials);
+  }
+
+  return Effect.fail(
+    new SandboxBackendError({
+      message:
+        "Snapshot credentials are not available. Configure VERCEL_PROJECT_ID, VERCEL_TEAM_ID, and VERCEL_TOKEN or provide VERCEL_OIDC_TOKEN.",
+    }),
+  );
 }
 
 export class VercelSandboxBackend extends SandboxBackend {
@@ -221,14 +245,14 @@ export class VercelSandboxBackend extends SandboxBackend {
     });
   }
 
-  protected latestSnapshotRaw(): Effect.Effect<
-    SnapshotSummary | null,
+  protected listSnapshotsRaw(): Effect.Effect<
+    ReadonlyArray<SnapshotSummary>,
     SandboxBackendError
   > {
     const snapshotCredentials = getSnapshotCredentials();
 
     if (!snapshotCredentials) {
-      return Effect.succeed(null);
+      return Effect.succeed([]);
     }
 
     return Effect.tryPromise({
@@ -243,7 +267,11 @@ export class VercelSandboxBackend extends SandboxBackend {
             until: until ?? undefined,
           });
 
-          snapshots.push(...page.json.snapshots.map(toSnapshotSummary));
+          snapshots.push(
+            ...page.json.snapshots
+              .map(toSnapshotSummary)
+              .filter((snapshot) => snapshot.status !== "deleted"),
+          );
           until = page.json.pagination.next;
         } while (until !== null && until !== undefined);
 
@@ -251,9 +279,7 @@ export class VercelSandboxBackend extends SandboxBackend {
           right.createdAt.localeCompare(left.createdAt),
         );
 
-        return (
-          snapshots.find((snapshot) => snapshot.status === "created") ?? null
-        );
+        return snapshots;
       },
       catch: toSandboxBackendError,
     });
@@ -322,6 +348,56 @@ export class VercelSandboxBackend extends SandboxBackend {
         sandboxId: sandbox.sandboxId,
         snapshotId: snapshot.snapshotId,
         expiresAt: snapshot.expiresAt?.toISOString() ?? null,
+      };
+    });
+  }
+
+  protected stopSandboxRaw(input: {
+    sandboxId: string;
+  }): Effect.Effect<StopSandboxSuccess, SandboxBackendError> {
+    return Effect.gen(function* () {
+      const sandbox = yield* Effect.tryPromise({
+        try: () => Sandbox.get({ sandboxId: input.sandboxId }),
+        catch: toSandboxBackendError,
+      });
+
+      const stoppedSandbox = yield* Effect.tryPromise({
+        try: () =>
+          sandbox.stop({
+            blocking: true,
+          }),
+        catch: toSandboxBackendError,
+      });
+
+      return {
+        sandboxId: input.sandboxId,
+        status: stoppedSandbox.status,
+      };
+    });
+  }
+
+  protected deleteSnapshotRaw(input: {
+    snapshotId: string;
+  }): Effect.Effect<DeleteSnapshotSuccess, SandboxBackendError> {
+    return Effect.gen(function* () {
+      const snapshotCredentials = yield* requireSnapshotCredentials();
+
+      const snapshot = yield* Effect.tryPromise({
+        try: () =>
+          Snapshot.get({
+            ...snapshotCredentials,
+            snapshotId: input.snapshotId,
+          }),
+        catch: toSandboxBackendError,
+      });
+
+      yield* Effect.tryPromise({
+        try: () => snapshot.delete(),
+        catch: toSandboxBackendError,
+      });
+
+      return {
+        snapshotId: input.snapshotId,
       };
     });
   }
