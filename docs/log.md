@@ -55,3 +55,9 @@ Use one entry per meaningful docs operation with the heading format `## [YYYY-MM
 - Added `repo-sandbox-bootstrap-v1.md` to capture the initial user-facing flow for selecting a repository, provisioning a sandbox, snapshotting it, and returning the `opencode` handoff instruction.
 - Recorded the accepted v1 simplifications: baseline keyed by repository only, exactly one mutable current snapshot per repository, restore-from-baseline behavior for fresh sandboxes, and no separate user authentication model.
 - Updated the docs index, specs index, and architecture pages so the bootstrap flow is discoverable alongside the autonomous task runner docs.
+
+## [2026-04-16] docs | repo sandbox bootstrap implementation todo
+
+- Added `repo-sandbox-bootstrap-implementation-todo.md` as the concrete delivery checklist for the repo bootstrap flow.
+- Recorded the main implementation gaps in the current code: project-global snapshot restore, no repo baseline persistence layer, no integrated GitHub App token service, and snapshot-builder behavior that does not clone a repository.
+- Updated the docs and specs indexes plus the v1 spec so the implementation checklist is discoverable next to the product spec.

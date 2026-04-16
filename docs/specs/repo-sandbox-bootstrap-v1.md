@@ -8,6 +8,10 @@ into a reusable sandbox baseline that can be handed off to `opencode`.
 This is a v1 product spec. It records the intended operating model and the
 accepted simplifications for the first version.
 
+See also:
+[`repo-sandbox-bootstrap-implementation-todo.md`](repo-sandbox-bootstrap-implementation-todo.md)
+for the code-oriented delivery checklist.
+
 ## Summary
 
 The bootstrap flow will:
