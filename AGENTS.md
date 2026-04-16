@@ -16,6 +16,10 @@ This repository is building a language-agnostic self-evolving system around a go
 
 The goal itself is expected to live in `GOAL.md`. The surrounding system should help an agent understand the goal, choose the next useful improvement, implement it safely, evaluate the result, and either propose it through a pull request or discard it.
 
+## Package Management
+
+Use `pnpm` for package management commands in this repository.
+
 ## Bootstrap Status
 
 The repository is still in an early bootstrap phase.
