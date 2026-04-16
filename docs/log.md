@@ -31,3 +31,9 @@ Use one entry per meaningful docs operation with the heading format `## [YYYY-MM
 
 - Updated `0003-use-snapshots-for-persistent-sandbox-restores.md` to capture the near-term design direction of `recipe + optional user profile`.
 - Recorded that Dockerfile-like snapshot customization is a future idea and not part of the current simplified snapshot workflow.
+
+## [2026-04-15] implementation | backend snapshot recipe builder
+
+- Added a backend-only sandbox build flow that creates a fresh sandbox, runs a recipe script, optionally runs a user profile script, and snapshots the result.
+- Added typed recipe/profile build results and a server action wrapper without changing the current UI.
+- Recorded that arbitrary snapshot layering remains deferred even though recipe-driven snapshot creation is now implemented.
