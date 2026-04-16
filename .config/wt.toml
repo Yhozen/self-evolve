@@ -31,8 +31,8 @@ pre-start = "pnpm install"
 #
 # Additional excludes for `wt step copy-ignored`:
 #
-# [step.copy-ignored]
-# exclude = [".cache/", ".turbo/"]
+[step.copy-ignored]
+exclude = [".cache/", ".turbo/", ".next]
 #
 # Built-in excludes always apply: VCS metadata directories (`.bzr/`, `.hg/`, `.jj/`, `.pijul/`, `.sl/`, `.svn/`) and tool-state directories (`.conductor/`, `.entire/`, `.pi/`, `.worktrees/`). User config and project config exclusions are combined.
 #
