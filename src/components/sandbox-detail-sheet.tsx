@@ -39,7 +39,7 @@ import {
   stopSandbox,
   type MockSandbox,
 } from "@/lib/mock-store";
-import { formatBytes, formatDuration } from "@/lib/sandbox-format";
+import { formatDuration } from "@/lib/sandbox-format";
 import { timeAgo } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
