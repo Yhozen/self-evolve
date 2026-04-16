@@ -1,236 +1,332 @@
 "use client";
 
-import Link from "next/link";
-import { useState, useTransition } from "react";
-import { createSandbox, listSandboxes } from "@/app/_actions/sandbox";
 import {
-  EmptyState,
-  ResultBanner,
-  SandboxCardItem,
-  SnapshotSummaryPanel,
-} from "@/components/sandbox-ui";
+  Archive,
+  ChevronRight,
+  Cpu,
+  GitBranch,
+  MoreHorizontal,
+  Play,
+  Plus,
+  Search,
+  Square,
+  Trash2,
+} from "lucide-react";
+import Link from "next/link";
+import { useMemo, useState } from "react";
+import { PageHeader } from "@/components/shared/page-header";
+import { StatusDot } from "@/components/shared/status-dot";
+import { SandboxDetailSheet } from "@/components/sandbox-detail-sheet";
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import type {
-  CreateSandboxResult,
-  SandboxListResult,
-  StopSandboxResult,
-} from "@/lib/sandbox";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import {
+  createSnapshot,
+  deleteSandbox,
+  resumeSandbox,
+  stopSandbox,
+  useMockState,
+  type MockSandbox,
+} from "@/lib/mock-store";
+import { timeAgo } from "@/lib/time";
+import { cn } from "@/lib/utils";
 
-type SandboxesPageClientProps = {
-  initialData: SandboxListResult;
-};
+type Filter = "all" | "running" | "stopped";
 
-export function SandboxesPageClient({ initialData }: SandboxesPageClientProps) {
-  const [sandboxes, setSandboxes] = useState(initialData.sandboxes);
-  const [snapshots, setSnapshots] = useState(initialData.snapshots);
-  const [latestSnapshot, setLatestSnapshot] = useState(
-    initialData.latestSnapshot,
-  );
-  const [error, setError] = useState(initialData.error);
-  const [createResult, setCreateResult] = useState<CreateSandboxResult | null>(
-    null,
-  );
-  const [stopResult, setStopResult] = useState<StopSandboxResult | null>(null);
-  const [isRefreshing, startRefreshTransition] = useTransition();
-  const [isCreating, startCreateTransition] = useTransition();
+export function SandboxesPageClient() {
+  const { sandboxes } = useMockState();
+  const [filter, setFilter] = useState<Filter>("all");
+  const [query, setQuery] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const applyData = (nextData: SandboxListResult) => {
-    setSandboxes(nextData.sandboxes);
-    setSnapshots(nextData.snapshots);
-    setLatestSnapshot(nextData.latestSnapshot);
-    setError(nextData.error);
-  };
+  const counts = useMemo(() => {
+    return {
+      all: sandboxes.length,
+      running: sandboxes.filter((s) => s.status === "running").length,
+      stopped: sandboxes.filter((s) => s.status !== "running").length,
+    };
+  }, [sandboxes]);
 
-  const refreshData = async () => {
-    const nextData = await listSandboxes();
-    applyData(nextData);
-  };
-
-  const refresh = () => {
-    startRefreshTransition(async () => {
-      await refreshData();
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return sandboxes.filter((s) => {
+      if (filter === "running" && s.status !== "running") return false;
+      if (filter === "stopped" && s.status === "running") return false;
+      if (!q) return true;
+      return (
+        s.name.toLowerCase().includes(q) ||
+        s.repo.toLowerCase().includes(q) ||
+        s.sandboxId.toLowerCase().includes(q)
+      );
     });
-  };
+  }, [sandboxes, filter, query]);
 
-  const createAndRefresh = () => {
-    startCreateTransition(async () => {
-      setCreateResult(null);
-      setStopResult(null);
-
-      const created = await createSandbox();
-      setCreateResult(created);
-
-      if (created.error) {
-        setError(created.error);
-        return;
-      }
-
-      await refreshData();
-    });
-  };
-
-  const handleSandboxStopped = async (stopped: StopSandboxResult) => {
-    setCreateResult(null);
-    setStopResult(stopped);
-
-    if (stopped.error) {
-      setError(stopped.error);
-      return;
-    }
-
-    await refreshData();
-  };
-
-  const runningSandboxes = sandboxes.filter(
-    (sandbox) => sandbox.status === "running",
-  ).length;
-  const transitioningSandboxes = sandboxes.filter((sandbox) =>
-    ["pending", "snapshotting", "stopping"].includes(sandbox.status),
-  ).length;
+  const selected = selectedId
+    ? sandboxes.find((s) => s.sandboxId === selectedId) ?? null
+    : null;
 
   return (
-    <section className="flex flex-1 flex-col gap-6 px-4 py-6 lg:px-8 lg:py-8">
-      <div className="rounded-[2rem] border border-border/70 bg-card/85 p-6 shadow-sm backdrop-blur lg:p-8">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-3xl space-y-3">
-            <p className="text-sm font-medium uppercase tracking-[0.22em] text-muted-foreground">
-              Live Compute
-            </p>
-            <div className="space-y-2">
-              <h1 className="text-3xl font-semibold tracking-tight text-foreground lg:text-4xl">
-                Operate live sandboxes and hand off durable state to snapshots.
-              </h1>
-              <p className="text-base leading-7 text-muted-foreground">
-                Create or restore sandboxes, run commands, inspect execution
-                output, and stop instances when they are no longer needed.
-                Snapshot promotion stays in the dedicated snapshots workflow.
-              </p>
-            </div>
-          </div>
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <Button variant="outline" asChild>
-              <Link href="/snapshots">Open Snapshots</Link>
-            </Button>
-            <Button onClick={createAndRefresh} disabled={isCreating}>
-              {isCreating
-                ? "Creating..."
-                : latestSnapshot
-                  ? "Create From Snapshot"
-                  : "Create Sandbox"}
-            </Button>
-            <Button variant="outline" onClick={refresh} disabled={isRefreshing}>
-              {isRefreshing ? "Refreshing..." : "Refresh"}
-            </Button>
-          </div>
-        </div>
+    <section className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 py-8 lg:px-8">
+      <PageHeader
+        title="Sandboxes"
+        description="Your live development environments. Click any sandbox to manage it."
+      />
+
+      <Toolbar
+        filter={filter}
+        onFilterChange={setFilter}
+        counts={counts}
+        query={query}
+        onQueryChange={setQuery}
+      />
+
+      {sandboxes.length === 0 ? (
+        <EmptySandboxes />
+      ) : filtered.length === 0 ? (
+        <NoResults query={query} />
+      ) : (
+        <ul className="flex flex-col gap-2">
+          {filtered.map((sandbox, index) => (
+            <li
+              key={sandbox.sandboxId}
+              className="animate-in fade-in slide-in-from-bottom-1 fill-mode-both"
+              style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
+            >
+              <SandboxRow
+                sandbox={sandbox}
+                onSelect={() => setSelectedId(sandbox.sandboxId)}
+                onStop={() => stopSandbox(sandbox.sandboxId)}
+                onResume={() => resumeSandbox(sandbox.sandboxId)}
+                onSnapshot={() => createSnapshot(sandbox.sandboxId)}
+                onDelete={() => deleteSandbox(sandbox.sandboxId)}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <SandboxDetailSheet
+        sandbox={selected}
+        open={selected !== null}
+        onOpenChange={(open) => {
+          if (!open) setSelectedId(null);
+        }}
+      />
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Toolbar
+// ---------------------------------------------------------------------------
+
+function Toolbar({
+  filter,
+  onFilterChange,
+  counts,
+  query,
+  onQueryChange,
+}: {
+  filter: Filter;
+  onFilterChange: (f: Filter) => void;
+  counts: { all: number; running: number; stopped: number };
+  query: string;
+  onQueryChange: (q: string) => void;
+}) {
+  const filters: { id: Filter; label: string; count: number }[] = [
+    { id: "all", label: "All", count: counts.all },
+    { id: "running", label: "Running", count: counts.running },
+    { id: "stopped", label: "Stopped", count: counts.stopped },
+  ];
+
+  return (
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="inline-flex items-center rounded-lg border bg-background p-0.5">
+        {filters.map((f) => (
+          <button
+            key={f.id}
+            onClick={() => onFilterChange(f.id)}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-all",
+              filter === f.id
+                ? "bg-muted text-foreground"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {f.label}
+            <span
+              className={cn(
+                "rounded-sm px-1 text-xs tabular-nums",
+                filter === f.id
+                  ? "text-foreground/70"
+                  : "text-muted-foreground/70",
+              )}
+            >
+              {f.count}
+            </span>
+          </button>
+        ))}
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
-        <Card className="border border-border/70 bg-card/90 shadow-sm backdrop-blur">
-          <CardHeader className="border-b border-border/70">
-            <CardTitle>Inventory</CardTitle>
-            <CardDescription>
-              The current Vercel scope is split into live sandboxes here and
-              restore points on the Snapshots page.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-3 pt-4 text-sm sm:grid-cols-3">
-            <div className="rounded-xl bg-muted/50 p-4">
-              <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                Total
-              </div>
-              <div className="mt-2 text-2xl font-semibold">
-                {sandboxes.length}
-              </div>
-              <p className="mt-1 text-muted-foreground">Sandboxes in scope</p>
-            </div>
-            <div className="rounded-xl bg-muted/50 p-4">
-              <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                Running
-              </div>
-              <div className="mt-2 text-2xl font-semibold">
-                {runningSandboxes}
-              </div>
-              <p className="mt-1 text-muted-foreground">Ready for commands</p>
-            </div>
-            <div className="rounded-xl bg-muted/50 p-4">
-              <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                Transitioning
-              </div>
-              <div className="mt-2 text-2xl font-semibold">
-                {transitioningSandboxes}
-              </div>
-              <p className="mt-1 text-muted-foreground">
-                Pending, stopping, or snapshotting
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <SnapshotSummaryPanel
-          latestSnapshot={latestSnapshot}
-          snapshotCount={snapshots.length}
+      <div className="relative sm:w-64">
+        <Search className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={query}
+          onChange={(e) => onQueryChange(e.target.value)}
+          placeholder="Search sandboxes..."
+          className="h-9 pl-8"
         />
       </div>
+    </div>
+  );
+}
 
-      {createResult?.sandboxId ? (
-        <ResultBanner>
-          {createResult.restoredFromSnapshot &&
-          createResult.sourceSnapshotId ? (
+// ---------------------------------------------------------------------------
+// Row
+// ---------------------------------------------------------------------------
+
+function SandboxRow({
+  sandbox,
+  onSelect,
+  onStop,
+  onResume,
+  onSnapshot,
+  onDelete,
+}: {
+  sandbox: MockSandbox;
+  onSelect: () => void;
+  onStop: () => void;
+  onResume: () => void;
+  onSnapshot: () => void;
+  onDelete: () => void;
+}) {
+  const isRunning = sandbox.status === "running";
+
+  return (
+    <div
+      className={cn(
+        "group flex items-center gap-3 rounded-xl border bg-background px-4 py-3 transition-all",
+        "hover:border-foreground/15 hover:shadow-sm",
+      )}
+    >
+      <button
+        type="button"
+        onClick={onSelect}
+        className="flex min-w-0 flex-1 items-center gap-3 text-left"
+      >
+        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted transition-colors group-hover:bg-muted/70">
+          <GitBranch className="size-4 text-muted-foreground" />
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <p className="truncate text-sm font-semibold text-foreground">
+              {sandbox.repo}
+            </p>
+            <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">
+              {sandbox.branch}
+            </span>
+          </div>
+          <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5">
+              <StatusDot status={sandbox.status} />
+              <span className="capitalize">{sandbox.status}</span>
+            </span>
+            <span className="text-muted-foreground/40">·</span>
+            <span className="inline-flex items-center gap-1">
+              <Cpu className="size-3" />
+              {sandbox.vcpus} vCPU
+            </span>
+            <span className="text-muted-foreground/40">·</span>
+            <span>{timeAgo(sandbox.updatedAt)}</span>
+          </div>
+        </div>
+
+        <ChevronRight className="size-4 shrink-0 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
+      </button>
+
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={(e) => e.stopPropagation()}
+            aria-label="Sandbox actions"
+          >
+            <MoreHorizontal className="size-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-52">
+          {isRunning ? (
             <>
-              Created sandbox {createResult.sandboxId} from snapshot{" "}
-              {createResult.sourceSnapshotId}. The refreshed inventory is shown
-              below.
+              <DropdownMenuItem onSelect={onSnapshot}>
+                <Archive className="size-4" />
+                Save as snapshot
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={onStop}>
+                <Square className="size-4" />
+                Stop sandbox
+              </DropdownMenuItem>
             </>
           ) : (
-            <>
-              Created fresh sandbox {createResult.sandboxId}. If it becomes a
-              useful baseline, save a snapshot from the Snapshots page.
-            </>
+            <DropdownMenuItem onSelect={onResume}>
+              <Play className="size-4" />
+              Resume sandbox
+            </DropdownMenuItem>
           )}
-        </ResultBanner>
-      ) : null}
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onSelect={onDelete} variant="destructive">
+            <Trash2 className="size-4" />
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+}
 
-      {stopResult?.sandboxId && !stopResult.error ? (
-        <ResultBanner tone="warning">
-          Stopped sandbox {stopResult.sandboxId}. Current status:{" "}
-          {stopResult.status ?? "unknown"}.
-        </ResultBanner>
-      ) : null}
+// ---------------------------------------------------------------------------
+// Empty & no results
+// ---------------------------------------------------------------------------
 
-      {error ? <ResultBanner tone="error">{error}</ResultBanner> : null}
+function EmptySandboxes() {
+  return (
+    <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed bg-muted/20 px-6 py-16 text-center animate-in fade-in">
+      <div className="flex size-12 items-center justify-center rounded-xl bg-muted">
+        <GitBranch className="size-5 text-muted-foreground" />
+      </div>
+      <div className="space-y-1">
+        <h3 className="font-heading text-base font-semibold">
+          No sandboxes yet
+        </h3>
+        <p className="max-w-sm text-sm text-muted-foreground">
+          Turn any GitHub repository into a ready-to-use development
+          environment in just a few clicks.
+        </p>
+      </div>
+      <Button asChild>
+        <Link href="/create-sandbox">
+          <Plus className="size-3.5" />
+          Create your first sandbox
+        </Link>
+      </Button>
+    </div>
+  );
+}
 
-      <Card className="border border-border/70 bg-card/90 shadow-sm backdrop-blur">
-        <CardHeader className="border-b border-border/70">
-          <CardTitle>Sandboxes</CardTitle>
-          <CardDescription>
-            Each card owns lifecycle and command execution. When a sandbox is
-            warmed the way you want, promote it from the Snapshots page.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-5 pt-5">
-          {sandboxes.length === 0 ? (
-            <EmptyState>
-              No sandboxes were returned by the current scope.
-            </EmptyState>
-          ) : (
-            sandboxes.map((sandbox) => (
-              <SandboxCardItem
-                key={sandbox.sandboxId}
-                sandbox={sandbox}
-                onSandboxStopped={handleSandboxStopped}
-              />
-            ))
-          )}
-        </CardContent>
-      </Card>
-    </section>
+function NoResults({ query }: { query: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed bg-muted/20 px-6 py-12 text-center">
+      <p className="text-sm font-medium">No matching sandboxes</p>
+      <p className="text-sm text-muted-foreground">
+        {query ? `Nothing found for "${query}"` : "Try changing your filter"}
+      </p>
+    </div>
   );
 }
