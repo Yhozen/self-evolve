@@ -1,66 +1,113 @@
-import { App } from "@octokit/app";
 import { Sandbox } from "@vercel/sandbox";
 import { type NextRequest, NextResponse } from "next/server";
-import z from "zod";
-import { env } from "@/env/server";
 
-const app = new App({
-  appId: env.GITHUB_APP_ID,
-  privateKey: env.GITHUB_APP_PRIVATE_KEY,
-});
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-const validInstallationAuthSchema = z
-  .object({
-    token: z.string(),
-  })
-  .loose();
+const OPENCODE_PORT = 4096;
+const OPENCODE_BIN = "/home/vercel-sandbox/.opencode/bin/opencode";
+const OPENCODE_USERNAME = "opencode";
+const SANDBOX_TIMEOUT_MS = 60 * 60 * 1000;
+const SERVER_STARTUP_DELAY_MS = 8_000;
 
-const createSandbox = async (
-  installationId: number,
-  repoUrl: string,
+const sleep = (durationMs: number) =>
+  new Promise((resolve) => setTimeout(resolve, durationMs));
+
+const createSandboxFromSnapshot = async (
+  snapshotId: string,
 ): Promise<Sandbox> => {
-  const octokit = await app.getInstallationOctokit(installationId);
-
-  const installationAuth = validInstallationAuthSchema.parse(
-    await octokit.auth({
-      type: "installation",
-      installationId,
-    }),
-  );
-
-  const sandbox = await Sandbox.create({
+  return Sandbox.create({
     source: {
-      url: repoUrl,
-      type: "git",
-      username: "x-access-token",
-      password: installationAuth.token,
+      type: "snapshot",
+      snapshotId,
     },
-    timeout: 5 * 60 * 1000,
-    ports: [3000],
+    timeout: SANDBOX_TIMEOUT_MS,
+    resources: {
+      vcpus: 2,
+    },
+    ports: [OPENCODE_PORT],
   });
-  return sandbox;
 };
 
-const searchParamsSchema = z.object({
-  installationId: z.coerce.number().positive(),
-  repoUrl: z.url(),
-});
+const startOpenCodeServer = async (
+  sandbox: Sandbox,
+): Promise<{ password: string; url: string }> => {
+  const password = crypto.randomUUID();
+
+  await sandbox.runCommand({
+    cmd: "bash",
+    args: [
+      "-lc",
+      `OPENCODE_SERVER_PASSWORD="${password}" nohup ${OPENCODE_BIN} serve --hostname 0.0.0.0 --port ${OPENCODE_PORT} > /tmp/opencode.log 2>&1 &`,
+    ],
+  });
+
+  await sleep(SERVER_STARTUP_DELAY_MS);
+
+  return {
+    password,
+    url: sandbox.domain(OPENCODE_PORT),
+  };
+};
+
+const checkOpenCodeHealth = async (input: {
+  password: string;
+  url: string;
+}): Promise<unknown> => {
+  const auth = Buffer.from(`${OPENCODE_USERNAME}:${input.password}`).toString(
+    "base64",
+  );
+
+  const response = await fetch(`${input.url}/global/health`, {
+    headers: {
+      Authorization: `Basic ${auth}`,
+    },
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `OpenCode health check failed with status ${response.status}`,
+    );
+  }
+
+  return response.json();
+};
+
+const buildAttachCommand = (input: { password: string; url: string }) => {
+  return `OPENCODE_SERVER_PASSWORD=${input.password} opencode attach ${input.url}`;
+};
 
 export async function GET(request: NextRequest) {
-  const result = searchParamsSchema.safeParse({
-    installationId: request?.nextUrl?.searchParams.get("installationId"),
-    repoUrl: request?.nextUrl?.searchParams.get("repoUrl"),
-  });
-  if (!result.success) {
-    return NextResponse.json({ error: result.error.message }, { status: 400 });
+  const snapshotId = request?.nextUrl?.searchParams.get("snapshotId");
+  if (typeof snapshotId !== "string") {
+    return NextResponse.json(
+      { error: "snapshotId is required" },
+      { status: 400 },
+    );
   }
-  const { installationId, repoUrl } = result.data;
+  console.log("snapshotId", snapshotId);
 
-  const sandbox = await createSandbox(installationId, repoUrl);
+  try {
+    const sandbox = await createSandboxFromSnapshot(snapshotId);
+    const { password, url } = await startOpenCodeServer(sandbox);
+    const health = await checkOpenCodeHealth({ password, url });
+    const attachCommand = buildAttachCommand({ password, url });
 
-  return NextResponse.json({
-    sandboxId: sandbox.sandboxId,
-    status: sandbox.status,
-    interactivePort: sandbox.interactivePort,
-  });
+    return NextResponse.json({
+      sandboxId: sandbox.sandboxId,
+      snapshotId: sandbox.sourceSnapshotId,
+      status: sandbox.status,
+      url,
+      username: OPENCODE_USERNAME,
+      password,
+      attachCommand,
+      health,
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Failed to start sandbox";
+
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }
