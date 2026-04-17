@@ -14,6 +14,24 @@ function buildPostSwitchInstallScript() {
   ].join("\n");
 }
 
+function buildCurrentBranchNormalizationScript() {
+  return [
+    'CURRENT_BRANCH="$(git branch --show-current || true)"',
+    "",
+    'if [ -z "$CURRENT_BRANCH" ]; then',
+    `  DEFAULT_BRANCH="\${BASELINE_BRANCH:-$(wt config state default-branch 2>/dev/null || echo main)}"`,
+    "",
+    '  if git show-ref --verify --quiet "refs/heads/$DEFAULT_BRANCH"; then',
+    '    git switch "$DEFAULT_BRANCH"',
+    "  else",
+    '    git switch -c "$DEFAULT_BRANCH"',
+    "  fi",
+    "",
+    '  CURRENT_BRANCH="$DEFAULT_BRANCH"',
+    "fi",
+  ].join("\n");
+}
+
 function buildSharedSetupScript(opencodeBin: string) {
   return [
     "set -euo pipefail",
@@ -43,25 +61,24 @@ function buildSharedSetupScript(opencodeBin: string) {
     "  brew install worktrunk",
     "fi",
     "",
-    "wt config shell install || true",
-    "",
     'POST_SWITCH_SCRIPT="$(mktemp)"',
     "cat > \"$POST_SWITCH_SCRIPT\" <<'EOF'",
     buildPostSwitchInstallScript(),
     "EOF",
     'chmod +x "$POST_SWITCH_SCRIPT"',
+    "",
+    buildCurrentBranchNormalizationScript(),
   ].join("\n");
 }
 
 function buildFreshBranchScript() {
   return [
     'if [ -n "$REQUESTED_BRANCH" ]; then',
-    '  CURRENT_BRANCH="$(git branch --show-current || true)"',
     '  if [ "$CURRENT_BRANCH" != "$REQUESTED_BRANCH" ]; then',
     '    if git show-ref --verify --quiet "refs/heads/$REQUESTED_BRANCH"; then',
-    '      wt switch "$REQUESTED_BRANCH" --execute "$POST_SWITCH_SCRIPT"',
+    '      wt switch "$REQUESTED_BRANCH" --yes --execute "$POST_SWITCH_SCRIPT"',
     "    else",
-    '      wt switch --create "$REQUESTED_BRANCH" --execute "$POST_SWITCH_SCRIPT"',
+    '      wt switch --create "$REQUESTED_BRANCH" --yes --execute "$POST_SWITCH_SCRIPT"',
     "    fi",
     "    exit $?",
     "  fi",
@@ -72,10 +89,9 @@ function buildFreshBranchScript() {
 function buildRestoredBranchScript() {
   return [
     'if [ -n "$REQUESTED_BRANCH" ]; then',
-    '  CURRENT_BRANCH="$(git branch --show-current || true)"',
     '  if [ "$CURRENT_BRANCH" != "$REQUESTED_BRANCH" ]; then',
     '    if git show-ref --verify --quiet "refs/heads/$REQUESTED_BRANCH"; then',
-    '      wt switch "$REQUESTED_BRANCH" --execute "$POST_SWITCH_SCRIPT"',
+    '      wt switch "$REQUESTED_BRANCH" --yes --execute "$POST_SWITCH_SCRIPT"',
     "      exit $?",
     "    fi",
     "",

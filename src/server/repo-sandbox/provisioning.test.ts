@@ -28,9 +28,14 @@ describe("buildRepoProvisionScript", () => {
       'if ! [ -x "/home/vercel-sandbox/.opencode/bin/opencode" ]; then',
     );
     expect(script).toContain("brew install worktrunk");
-    expect(script).toContain("wt config shell install || true");
+    expect(script).not.toContain("wt config shell install");
     expect(script).toContain(
-      'wt switch --create "$REQUESTED_BRANCH" --execute "$POST_SWITCH_SCRIPT"',
+      `DEFAULT_BRANCH="\${BASELINE_BRANCH:-$(wt config state default-branch 2>/dev/null || echo main)}"`,
+    );
+    expect(script).toContain('git switch "$DEFAULT_BRANCH"');
+    expect(script).toContain('git switch -c "$DEFAULT_BRANCH"');
+    expect(script).toContain(
+      'wt switch --create "$REQUESTED_BRANCH" --yes --execute "$POST_SWITCH_SCRIPT"',
     );
     expect(script).toContain("pnpm install --frozen-lockfile=false");
   });
@@ -43,11 +48,11 @@ describe("buildRepoProvisionScript", () => {
     });
 
     expect(script).toContain(
-      'wt switch "$REQUESTED_BRANCH" --execute "$POST_SWITCH_SCRIPT"',
+      'wt switch "$REQUESTED_BRANCH" --yes --execute "$POST_SWITCH_SCRIPT"',
     );
     expect(script).toContain("Baseline branch mismatch:");
     expect(script).not.toContain(
-      'wt switch --create "$REQUESTED_BRANCH" --execute "$POST_SWITCH_SCRIPT"',
+      'wt switch --create "$REQUESTED_BRANCH" --yes --execute "$POST_SWITCH_SCRIPT"',
     );
   });
 });
