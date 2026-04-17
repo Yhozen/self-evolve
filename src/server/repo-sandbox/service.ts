@@ -38,6 +38,7 @@ import {
   stopSandboxProgram,
 } from "@/server/sandbox/service";
 import { VercelSandboxLive } from "@/server/sandbox/vercel-sandbox-live";
+import { buildRepoProvisionScript } from "./provisioning";
 import {
   clearRepoBaseline,
   getRepoBaseline,
@@ -172,50 +173,17 @@ async function provisionFreshRepoSandbox(input: {
   branch: string;
   cwd: string;
   sandbox: Sandbox;
-  workspacePath: string;
 }) {
   const command = await runShellScript({
     sandbox: input.sandbox,
     cwd: input.cwd,
     env: {
       REQUESTED_BRANCH: input.branch,
-      REQUESTED_WORKSPACE_PATH: input.workspacePath,
     },
-    script: `
-set -euo pipefail
-
-if [ -n "$REQUESTED_WORKSPACE_PATH" ] && [ "$REQUESTED_WORKSPACE_PATH" != "$PWD" ]; then
-  mkdir -p "$(dirname "$REQUESTED_WORKSPACE_PATH")"
-  ln -sfn "$PWD" "$REQUESTED_WORKSPACE_PATH"
-fi
-
-if [ -n "$REQUESTED_BRANCH" ]; then
-  CURRENT_BRANCH="$(git branch --show-current || true)"
-  if [ "$CURRENT_BRANCH" != "$REQUESTED_BRANCH" ]; then
-    git checkout "$REQUESTED_BRANCH"
-  fi
-fi
-
-if ! [ -x "$HOME/.opencode/bin/opencode" ]; then
-  curl -fsSL https://opencode.ai/install | bash
-fi
-
-export PATH="$HOME/.opencode/bin:$PATH"
-
-if [ -f package.json ]; then
-  corepack enable >/dev/null 2>&1 || true
-
-  if [ -f pnpm-lock.yaml ]; then
-    pnpm install --frozen-lockfile=false
-  elif [ -f bun.lock ] || [ -f bun.lockb ]; then
-    bun install
-  elif [ -f yarn.lock ]; then
-    yarn install
-  elif [ -f package-lock.json ]; then
-    npm install
-  fi
-fi
-`,
+    script: buildRepoProvisionScript({
+      mode: "fresh",
+      opencodeBin: OPENCODE_BIN,
+    }),
   });
 
   return {
@@ -230,55 +198,19 @@ async function prepareRestoredRepoSandbox(input: {
   branch: string;
   cwd: string;
   sandbox: Sandbox;
-  workspacePath: string;
 }) {
   const command = await runShellScript({
     sandbox: input.sandbox,
     cwd: input.cwd,
     env: {
+      BASELINE_BRANCH: input.baselineBranch,
       REQUESTED_BRANCH: input.branch,
-      REQUESTED_WORKSPACE_PATH: input.workspacePath,
     },
-    script: `
-set -euo pipefail
-
-if [ -n "$REQUESTED_WORKSPACE_PATH" ] && [ "$REQUESTED_WORKSPACE_PATH" != "$PWD" ]; then
-  mkdir -p "$(dirname "$REQUESTED_WORKSPACE_PATH")"
-  ln -sfn "$PWD" "$REQUESTED_WORKSPACE_PATH"
-fi
-
-if ! [ -x "$HOME/.opencode/bin/opencode" ]; then
-  curl -fsSL https://opencode.ai/install | bash
-fi
-
-export PATH="$HOME/.opencode/bin:$PATH"
-
-if [ -n "$REQUESTED_BRANCH" ]; then
-  CURRENT_BRANCH="$(git branch --show-current || true)"
-  if [ "$CURRENT_BRANCH" != "$REQUESTED_BRANCH" ]; then
-    if git rev-parse --verify --quiet "$REQUESTED_BRANCH" >/dev/null; then
-      git checkout "$REQUESTED_BRANCH"
-    else
-      echo "Baseline branch mismatch: snapshot is on ${input.baselineBranch} and local branch $REQUESTED_BRANCH is not available. Create a fresh sandbox for a new branch." >&2
-      exit 1
-    fi
-
-    if [ -f package.json ]; then
-      corepack enable >/dev/null 2>&1 || true
-
-      if [ -f pnpm-lock.yaml ]; then
-        pnpm install --frozen-lockfile=false
-      elif [ -f bun.lock ] || [ -f bun.lockb ]; then
-        bun install
-      elif [ -f yarn.lock ]; then
-        yarn install
-      elif [ -f package-lock.json ]; then
-        npm install
-      fi
-    fi
-  fi
-fi
-`,
+    script: buildRepoProvisionScript({
+      mode: "restored",
+      baselineBranch: input.baselineBranch,
+      opencodeBin: OPENCODE_BIN,
+    }),
   });
 
   return {
@@ -743,13 +675,11 @@ export async function createRepoSandbox(
           cwd,
           branch,
           baselineBranch: baseline.branch,
-          workspacePath,
         })
       : await provisionFreshRepoSandbox({
           sandbox,
           cwd,
           branch,
-          workspacePath,
         });
 
     if (provisionResult.exitCode !== 0) {
