@@ -1,264 +1,375 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useMemo, useState, useTransition } from "react";
-import { listSandboxes, snapshotSandbox } from "@/app/_actions/sandbox";
 import {
-  EmptyState,
-  ResultBanner,
-  SnapshotCardItem,
-  SnapshotSummaryPanel,
-} from "@/components/sandbox-ui";
+  Archive,
+  ChevronRight,
+  HardDrive,
+  MoreHorizontal,
+  Play,
+  Plus,
+  Search,
+  Trash2,
+} from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { startTransition, useEffect, useMemo, useState } from "react";
+import {
+  deleteRepoSnapshotAction,
+  restoreRepoSnapshotAction,
+} from "@/app/_actions/repo-sandbox";
+import { PageHeader } from "@/components/shared/page-header";
+import { SnapshotDetailSheet } from "@/components/snapshot-detail-sheet";
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
 import type {
-  CreateSnapshotResult,
-  DeleteSnapshotResult,
-  SandboxListResult,
-} from "@/lib/sandbox";
+  RepoSandboxInventory,
+  RepoSnapshotSummary,
+} from "@/lib/repo-sandbox";
+import { formatBytes } from "@/lib/sandbox-format";
+import { timeAgo } from "@/lib/time";
+import { cn } from "@/lib/utils";
 
-type SnapshotsPageClientProps = {
-  initialData: SandboxListResult;
+type Notice = {
+  tone: "error" | "success";
+  message: string;
 };
 
-export function SnapshotsPageClient({ initialData }: SnapshotsPageClientProps) {
-  const [sandboxes, setSandboxes] = useState(initialData.sandboxes);
-  const [snapshots, setSnapshots] = useState(initialData.snapshots);
-  const [latestSnapshot, setLatestSnapshot] = useState(
-    initialData.latestSnapshot,
-  );
-  const [error, setError] = useState(initialData.error);
-  const [snapshotResult, setSnapshotResult] =
-    useState<CreateSnapshotResult | null>(null);
-  const [deleteSnapshotResult, setDeleteSnapshotResult] =
-    useState<DeleteSnapshotResult | null>(null);
-  const [isRefreshing, startRefreshTransition] = useTransition();
-  const [isCreating, startCreateTransition] = useTransition();
-
-  const runningSandboxes = useMemo(
-    () => sandboxes.filter((sandbox) => sandbox.status === "running"),
-    [sandboxes],
-  );
-
-  const [selectedSandboxId, setSelectedSandboxId] = useState(
-    initialData.sandboxes.find((sandbox) => sandbox.status === "running")
-      ?.sandboxId ?? "",
-  );
+export function SnapshotsPageClient({
+  initialInventory,
+}: {
+  initialInventory: RepoSandboxInventory;
+}) {
+  const router = useRouter();
+  const [inventory, setInventory] = useState(initialInventory);
+  const [query, setQuery] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [notice, setNotice] = useState<Notice | null>(null);
 
   useEffect(() => {
-    if (
-      selectedSandboxId &&
-      runningSandboxes.some(
-        (sandbox) => sandbox.sandboxId === selectedSandboxId,
-      )
-    ) {
-      return;
+    setInventory(initialInventory);
+  }, [initialInventory]);
+
+  const snapshots = inventory.snapshots;
+  const latestSnapshot = inventory.latestSnapshot;
+
+  const filtered = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+
+    if (!normalizedQuery) {
+      return snapshots;
     }
 
-    setSelectedSandboxId(runningSandboxes[0]?.sandboxId ?? "");
-  }, [runningSandboxes, selectedSandboxId]);
+    return snapshots.filter(
+      (snapshot) =>
+        snapshot.name.toLowerCase().includes(normalizedQuery) ||
+        snapshot.repo.toLowerCase().includes(normalizedQuery) ||
+        snapshot.snapshotId.toLowerCase().includes(normalizedQuery),
+    );
+  }, [query, snapshots]);
 
-  const applyData = (nextData: SandboxListResult) => {
-    setSandboxes(nextData.sandboxes);
-    setSnapshots(nextData.snapshots);
-    setLatestSnapshot(nextData.latestSnapshot);
-    setError(nextData.error);
-  };
+  const selected = selectedId
+    ? (snapshots.find((snapshot) => snapshot.snapshotId === selectedId) ?? null)
+    : null;
 
-  const refreshData = async () => {
-    const nextData = await listSandboxes();
-    applyData(nextData);
-  };
-
-  const refresh = () => {
-    startRefreshTransition(async () => {
-      await refreshData();
+  const syncInventory = (nextInventory: RepoSandboxInventory) => {
+    setInventory(nextInventory);
+    startTransition(() => {
+      router.refresh();
     });
   };
 
-  const createSnapshotForSelectedSandbox = () => {
-    if (!selectedSandboxId) {
-      return;
+  const handleRestore = async (snapshotId: string) => {
+    const response = await restoreRepoSnapshotAction(snapshotId);
+    syncInventory(response.inventory);
+
+    if (response.result.error) {
+      setNotice({
+        tone: "error",
+        message: response.result.error,
+      });
+      return { error: response.result.error };
     }
 
-    startCreateTransition(async () => {
-      setSnapshotResult(null);
-      setDeleteSnapshotResult(null);
-
-      const created = await snapshotSandbox(selectedSandboxId);
-      setSnapshotResult(created);
-
-      if (created.error) {
-        setError(created.error);
-        return;
-      }
-
-      await refreshData();
+    setNotice({
+      tone: "success",
+      message: response.result.attach
+        ? "Fresh sandbox created and OpenCode handoff is ready."
+        : "Fresh sandbox created from the snapshot.",
     });
+
+    return { error: null };
   };
 
-  const handleSnapshotDeleted = async (deleted: DeleteSnapshotResult) => {
-    setSnapshotResult(null);
-    setDeleteSnapshotResult(deleted);
+  const handleDelete = async (snapshotId: string) => {
+    const response = await deleteRepoSnapshotAction(snapshotId);
+    syncInventory(response.inventory);
 
-    if (deleted.error) {
-      setError(deleted.error);
-      return;
+    if (response.result.error) {
+      setNotice({
+        tone: "error",
+        message: response.result.error,
+      });
+      return { error: response.result.error };
     }
 
-    await refreshData();
+    setNotice({
+      tone: "success",
+      message: "Snapshot deleted.",
+    });
+
+    return { error: null };
   };
 
   return (
-    <section className="flex flex-1 flex-col gap-6 px-4 py-6 lg:px-8 lg:py-8">
-      <div className="rounded-[2rem] border border-border/70 bg-card/85 p-6 shadow-sm backdrop-blur lg:p-8">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-3xl space-y-3">
-            <p className="text-sm font-medium uppercase tracking-[0.22em] text-muted-foreground">
-              Restore Points
-            </p>
-            <div className="space-y-2">
-              <h1 className="text-3xl font-semibold tracking-tight text-foreground lg:text-4xl">
-                Promote running sandboxes into reusable restore points.
-              </h1>
-              <p className="text-base leading-7 text-muted-foreground">
-                Create snapshots from running sandboxes, inspect the current
-                restore base, and delete restore points that are no longer
-                useful.
-              </p>
-            </div>
+    <section className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 py-8 lg:px-8">
+      <PageHeader
+        title="Snapshots"
+        description="Reusable restore points. Spin up fresh sandboxes from a known-good baseline."
+      />
+
+      {snapshots.length > 0 ? (
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-sm text-muted-foreground">
+            {snapshots.length} snapshot{snapshots.length === 1 ? "" : "s"}
+            {latestSnapshot ? (
+              <>
+                <span className="mx-2 text-muted-foreground/40">·</span>
+                Latest from{" "}
+                <span className="font-medium text-foreground">
+                  {latestSnapshot.repo}
+                </span>{" "}
+                {timeAgo(latestSnapshot.createdAt)}
+              </>
+            ) : null}
           </div>
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <Button variant="outline" asChild>
-              <Link href="/sandboxes">Open Sandboxes</Link>
-            </Button>
-            <Button variant="outline" onClick={refresh} disabled={isRefreshing}>
-              {isRefreshing ? "Refreshing..." : "Refresh"}
-            </Button>
+          <div className="relative sm:w-64">
+            <Search className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search snapshots..."
+              className="h-9 pl-8"
+            />
           </div>
         </div>
-      </div>
-
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
-        <Card className="border border-border/70 bg-card/90 shadow-sm backdrop-blur">
-          <CardHeader className="border-b border-border/70">
-            <CardTitle>Create Snapshot</CardTitle>
-            <CardDescription>
-              Choose a running sandbox and turn it into the next persistent
-              restore base.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4 pt-4">
-            <label className="grid gap-2 text-sm">
-              <span className="font-medium">Running sandbox</span>
-              <select
-                className="h-10 rounded-xl border border-input bg-background px-3 text-sm outline-none transition focus:border-ring"
-                value={selectedSandboxId}
-                onChange={(event) => setSelectedSandboxId(event.target.value)}
-                disabled={runningSandboxes.length === 0}
-              >
-                {runningSandboxes.length === 0 ? (
-                  <option value="">No running sandboxes available</option>
-                ) : (
-                  runningSandboxes.map((sandbox) => (
-                    <option key={sandbox.sandboxId} value={sandbox.sandboxId}>
-                      {sandbox.sandboxId}
-                    </option>
-                  ))
-                )}
-              </select>
-            </label>
-
-            <div className="rounded-xl bg-muted/50 p-4 text-sm text-muted-foreground">
-              <p>
-                Creating a snapshot freezes the selected sandbox and turns that
-                snapshot into the restore base used for future sandbox creates.
-              </p>
-            </div>
-
-            {runningSandboxes.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-border bg-background/70 p-4 text-sm text-muted-foreground">
-                No sandboxes are currently running. Create or restore one from
-                the Sandboxes page, warm it, then come back here to save the
-                snapshot.
-              </div>
-            ) : null}
-
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm text-muted-foreground">
-                {runningSandboxes.length} running sandbox
-                {runningSandboxes.length === 1 ? "" : "es"} available for
-                snapshotting.
-              </p>
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <Button variant="outline" asChild>
-                  <Link href="/sandboxes">Open Sandboxes</Link>
-                </Button>
-                <Button
-                  onClick={createSnapshotForSelectedSandbox}
-                  disabled={isCreating || !selectedSandboxId}
-                >
-                  {isCreating ? "Saving Snapshot..." : "Create Snapshot"}
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <SnapshotSummaryPanel
-          latestSnapshot={latestSnapshot}
-          snapshotCount={snapshots.length}
-        />
-      </div>
-
-      {snapshotResult?.snapshotId ? (
-        <ResultBanner>
-          Saved snapshot {snapshotResult.snapshotId} from sandbox{" "}
-          {snapshotResult.sandboxId}. The latest snapshot has been refreshed
-          below.
-        </ResultBanner>
       ) : null}
 
-      {deleteSnapshotResult?.snapshotId && !deleteSnapshotResult.error ? (
-        <ResultBanner tone="warning">
-          Deleted snapshot {deleteSnapshotResult.snapshotId}.
-        </ResultBanner>
-      ) : null}
+      {notice ? <NoticeBanner notice={notice} /> : null}
 
-      {error ? <ResultBanner tone="error">{error}</ResultBanner> : null}
+      {snapshots.length === 0 ? (
+        <EmptySnapshots />
+      ) : filtered.length === 0 ? (
+        <NoResults query={query} />
+      ) : (
+        <ul className="flex flex-col gap-2">
+          {filtered.map((snapshot, index) => {
+            const isLatest = snapshot.snapshotId === latestSnapshot?.snapshotId;
 
-      <Card className="border border-border/70 bg-card/90 shadow-sm backdrop-blur">
-        <CardHeader className="border-b border-border/70">
-          <CardTitle>Snapshots</CardTitle>
-          <CardDescription>
-            Saved restore points returned by the active Vercel project. Remove
-            one with the `Delete Snapshot` button on its card.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-5 pt-5">
-          {snapshots.length === 0 ? (
-            <EmptyState>
-              No snapshots were returned by the current project. When snapshots
-              exist, each card here includes a `Delete Snapshot` action.
-            </EmptyState>
-          ) : (
-            snapshots.map((snapshot) => (
-              <SnapshotCardItem
+            return (
+              <li
                 key={snapshot.snapshotId}
-                isLatest={snapshot.snapshotId === latestSnapshot?.snapshotId}
-                onDeleted={handleSnapshotDeleted}
-                snapshot={snapshot}
-              />
-            ))
-          )}
-        </CardContent>
-      </Card>
+                className="animate-in fade-in slide-in-from-bottom-1 fill-mode-both"
+                style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
+              >
+                <SnapshotRow
+                  snapshot={snapshot}
+                  isLatest={isLatest}
+                  onDelete={handleDelete}
+                  onRestore={handleRestore}
+                  onSelect={() => setSelectedId(snapshot.snapshotId)}
+                />
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      <SnapshotDetailSheet
+        snapshot={selected}
+        isLatest={selected?.snapshotId === latestSnapshot?.snapshotId}
+        open={selected !== null}
+        onDelete={handleDelete}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedId(null);
+          }
+        }}
+        onRestore={handleRestore}
+      />
     </section>
+  );
+}
+
+function NoticeBanner({ notice }: { notice: Notice }) {
+  return (
+    <div
+      className={cn(
+        "rounded-xl border px-4 py-3 text-sm animate-in fade-in slide-in-from-top-1",
+        notice.tone === "error"
+          ? "border-destructive/20 bg-destructive/6 text-destructive"
+          : "border-emerald-500/20 bg-emerald-500/8 text-emerald-800",
+      )}
+    >
+      {notice.message}
+    </div>
+  );
+}
+
+function SnapshotRow({
+  snapshot,
+  isLatest,
+  onDelete,
+  onRestore,
+  onSelect,
+}: {
+  snapshot: RepoSnapshotSummary;
+  isLatest: boolean;
+  onDelete: (snapshotId: string) => Promise<{ error: string | null }>;
+  onRestore: (snapshotId: string) => Promise<{ error: string | null }>;
+  onSelect: () => void;
+}) {
+  const [menuBusy, setMenuBusy] = useState<string | null>(null);
+
+  return (
+    <div
+      className={cn(
+        "group flex items-center gap-3 rounded-xl border bg-background px-4 py-3 transition-all",
+        "hover:border-foreground/15 hover:shadow-sm",
+      )}
+    >
+      <button
+        type="button"
+        onClick={onSelect}
+        className="flex min-w-0 flex-1 items-center gap-3 text-left"
+      >
+        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted transition-colors group-hover:bg-muted/70">
+          <Archive className="size-4 text-muted-foreground" />
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <p className="truncate text-sm font-semibold text-foreground">
+              {snapshot.repo}
+            </p>
+            <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">
+              {snapshot.branch}
+            </span>
+            {isLatest ? (
+              <span className="inline-flex items-center rounded-md bg-foreground px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-background">
+                Latest
+              </span>
+            ) : null}
+          </div>
+          <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1">
+              <HardDrive className="size-3" />
+              {formatBytes(snapshot.sizeBytes)}
+            </span>
+            <span className="text-muted-foreground/40">·</span>
+            <span>{timeAgo(snapshot.createdAt)}</span>
+          </div>
+        </div>
+
+        <ChevronRight className="size-4 shrink-0 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
+      </button>
+
+      <Button
+        variant="outline"
+        size="sm"
+        type="button"
+        onClick={() => onRestore(snapshot.snapshotId)}
+        className="hidden sm:inline-flex"
+      >
+        <Play className="size-3" />
+        Restore
+      </Button>
+
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            type="button"
+            onClick={(event) => event.stopPropagation()}
+            aria-label="Snapshot actions"
+            disabled={menuBusy !== null}
+          >
+            <MoreHorizontal className="size-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-52">
+          <DropdownMenuItem
+            onSelect={async () => {
+              setMenuBusy("restore");
+              await onRestore(snapshot.snapshotId);
+              setMenuBusy(null);
+            }}
+          >
+            <Play className="size-4" />
+            Restore to sandbox
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onSelect={async () => {
+              setMenuBusy("delete");
+              await onDelete(snapshot.snapshotId);
+              setMenuBusy(null);
+            }}
+            variant="destructive"
+          >
+            <Trash2 className="size-4" />
+            Delete snapshot
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+}
+
+function EmptySnapshots() {
+  return (
+    <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed bg-muted/20 px-6 py-16 text-center animate-in fade-in">
+      <div className="flex size-12 items-center justify-center rounded-xl bg-muted">
+        <Archive className="size-5 text-muted-foreground" />
+      </div>
+      <div className="space-y-1">
+        <h3 className="font-heading text-base font-semibold">
+          No snapshots yet
+        </h3>
+        <p className="max-w-sm text-sm text-muted-foreground">
+          Create a sandbox, warm it up with your dependencies, then save it as a
+          snapshot. Future sandboxes restore instantly.
+        </p>
+      </div>
+      <div className="flex gap-2">
+        <Button asChild variant="outline">
+          <Link href="/sandboxes">Go to sandboxes</Link>
+        </Button>
+        <Button asChild>
+          <Link href="/create-sandbox">
+            <Plus className="size-3.5" />
+            Create sandbox
+          </Link>
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function NoResults({ query }: { query: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed bg-muted/20 px-6 py-12 text-center">
+      <p className="text-sm font-medium">No matching snapshots</p>
+      <p className="text-sm text-muted-foreground">
+        {query ? `Nothing found for "${query}"` : "No snapshots available"}
+      </p>
+    </div>
   );
 }

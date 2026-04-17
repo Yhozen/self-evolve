@@ -1,8 +1,9 @@
 import { SnapshotsPageClient } from "@/components/snapshots-page-client";
-import { getSandboxInventory } from "@/server/sandbox/runtime";
+import { filterManagedInventory } from "@/lib/repo-sandbox";
+import { getRepoSandboxInventory } from "@/server/repo-sandbox/service";
 
 export default async function SnapshotsPage() {
-  const initialData = await getSandboxInventory();
+  const inventory = filterManagedInventory(await getRepoSandboxInventory());
 
-  return <SnapshotsPageClient initialData={initialData} />;
+  return <SnapshotsPageClient initialInventory={inventory} />;
 }
